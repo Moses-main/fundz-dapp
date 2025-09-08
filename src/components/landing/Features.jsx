@@ -1,77 +1,146 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
+import { Zap, Lock, Users, Rocket, ArrowRight } from 'lucide-react';
 
 const features = [
   {
-    icon: (
-      <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    title: 'Dual Currency Support',
-    description: 'Accept both cryptocurrency and traditional fiat payments to reach a wider audience and maximize your fundraising potential.'
+    icon: <Zap className="w-6 h-6 text-indigo-600" />,
+    title: 'Dual Currency',
+    description: 'Accept both crypto and fiat payments to maximize your fundraising potential and reach a global audience.',
+    color: 'from-blue-500 to-indigo-500',
+    bg: 'bg-gradient-to-br from-blue-50 to-indigo-50'
   },
   {
-    icon: (
-      <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-      </svg>
-    ),
+    icon: <Lock className="w-6 h-6 text-indigo-600" />,
     title: 'Secure & Transparent',
-    description: 'Built on blockchain technology to ensure transparency, security, and trust in every transaction.'
+    description: 'Blockchain-powered transparency ensures every transaction is secure, verifiable, and tamper-proof.',
+    color: 'from-green-500 to-emerald-500',
+    bg: 'bg-gradient-to-br from-green-50 to-emerald-50'
   },
   {
-    icon: (
-      <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-    title: 'Community Driven',
-    description: 'Leverage the power of community with social sharing and community engagement features built right in.'
+    icon: <Users className="w-6 h-6 text-indigo-600" />,
+    title: 'Community First',
+    description: 'Built-in social features help you engage with your community and grow your supporter base.',
+    color: 'from-purple-500 to-pink-500',
+    bg: 'bg-gradient-to-br from-purple-50 to-pink-50'
   },
   {
-    icon: (
-      <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
+    icon: <Rocket className="w-6 h-6 text-indigo-600" />,
     title: 'Lightning Fast',
-    description: 'Our platform is built for speed, ensuring quick campaign creation and instant updates for your backers.'
+    description: 'Instant setup, real-time updates, and near-instant transactions powered by blockchain technology.',
+    color: 'from-amber-500 to-orange-500',
+    bg: 'bg-gradient-to-br from-amber-50 to-orange-50'
   }
 ];
 
-const FeatureCard = ({ icon, title, description, index }) => (
-  <motion.div
-    className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300"
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ duration: 0.5, delay: index * 0.1 }}
-  >
-    <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mb-4">
-      {icon}
-    </div>
-    <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
-    <p className="text-gray-600">{description}</p>
-  </motion.div>
-);
+const FeatureCard = ({ icon, title, description, index, color, bg }) => {
+  const ref = React.useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  
+  return (
+    <motion.div
+      ref={ref}
+      className={`group relative overflow-hidden p-0.5 rounded-xl bg-gradient-to-br ${bg} hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+      transition={{ 
+        duration: 0.6, 
+        delay: index * 0.1,
+        ease: [0.16, 1, 0.3, 1]
+      }}
+    >
+      <div className="relative z-10 bg-white p-6 rounded-xl h-full">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 ${bg}`}>
+          {React.cloneElement(icon, { className: `w-6 h-6 ${color.replace('from-', 'text-').split(' ')[0]}` })}
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-3">{title}</h3>
+        <p className="text-gray-600 mb-4 leading-relaxed">{description}</p>
+        <div className="flex items-center text-sm font-medium text-indigo-600 group-hover:text-indigo-700 transition-colors">
+          <span>Learn more</span>
+          <ArrowRight className="ml-1 w-4 h-4 transition-transform group-hover:translate-x-1" />
+        </div>
+      </div>
+      <div className={`absolute -bottom-10 -right-10 w-32 h-32 rounded-full bg-gradient-to-br ${color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
+    </motion.div>
+  );
+};
 
 const Features = () => {
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      }
+    }
+  };
+
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-            Why Choose Fundloom?
+    <section className="relative py-20 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-64 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-5"></div>
+      
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <motion.div 
+          className="text-center mb-20"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+        >
+          <span className="inline-block px-3 py-1 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-full mb-4">
+            Powerful Features
+          </span>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+            Everything You Need to Succeed
           </h2>
-          <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
-            A new standard in decentralized fundraising with powerful features to help you succeed.
+          <div className="w-20 h-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full mx-auto mb-8"></div>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Fundloom combines powerful blockchain technology with an intuitive interface to make fundraising seamless and effective.
           </p>
-        </div>
+        </motion.div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 gap-8"
+          variants={container}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-100px" }}
+        >
           {features.map((feature, index) => (
-            <FeatureCard key={index} index={index} {...feature} />
+            <FeatureCard 
+              key={index} 
+              index={index} 
+              {...feature} 
+            />
+          ))}
+        </motion.div>
+      </div>
+      
+      {/* Stats section */}
+      <div className="mt-24 bg-white rounded-2xl shadow-xl p-8 max-w-5xl mx-4 sm:mx-auto">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          {[
+            { number: '10K+', label: 'Campaigns' },
+            { number: '$50M+', label: 'Raised' },
+            { number: '500K+', label: 'Backers' },
+            { number: '99.9%', label: 'Uptime' }
+          ].map((stat, index) => (
+            <motion.div 
+              key={stat.label}
+              className="p-4"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <div className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-blue-500 bg-clip-text text-transparent">
+                {stat.number}
+              </div>
+              <div className="text-gray-500 mt-2">{stat.label}</div>
+            </motion.div>
           ))}
         </div>
       </div>
