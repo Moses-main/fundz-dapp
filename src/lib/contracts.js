@@ -1,3 +1,5 @@
+import { ethers } from "ethers";
+
 export const CONTRACT_ADDRESS = "0x1caFB2265A629CF369152bcd2858e84e7CAcf7CB"; // replace with your deployed FundLoom
 export const USDC_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; // Sepolia USDC (example)
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
