@@ -1,25 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Clock, User } from "lucide-react";
+import { ArrowLeft, Clock, User, Target, Users, Share2, Copy, Globe, Calendar, DollarSign, ArrowUpRight } from "lucide-react";
 import { getCampaign, getCampaigns } from "../lib/campaignService";
 import { toast } from "react-hot-toast";
 import { ethers } from "ethers";
-
-// Add these imports at the top of the file if not already present
-import {
-  // ArrowLeft,
-  // Clock,
-  // User,
-  Target,
-  Users,
-  Share2,
-  Copy,
-  Globe,
-  Calendar,
-  DollarSign,
-  ArrowUpRight,
-} from "lucide-react";
+import PaymentModal from "./PaymentModal";
 
 const CampaignDetails = ({ account, signer, provider }) => {
   const { id } = useParams();
@@ -32,8 +18,8 @@ const CampaignDetails = ({ account, signer, provider }) => {
   const [relatedCampaigns, setRelatedCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [amount, setAmount] = useState("");
-  const [isContributing, setIsContributing] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
 
   // Get the provider to use for contract calls
   const getProvider = async () => {
@@ -224,6 +210,13 @@ const CampaignDetails = ({ account, signer, provider }) => {
   // Replace the return statement with this updated UI
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        campaign={selectedCampaign || campaign}
+        account={account}
+        signer={signer}
+      />
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Back button */}
         <button
@@ -374,41 +367,15 @@ const CampaignDetails = ({ account, signer, provider }) => {
                   </div>
 
                   {/* Contribution form */}
-                  <form onSubmit={handleContribute} className="space-y-4">
-                    <div>
-                      <label
-                        htmlFor="amount"
-                        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                      >
-                        Amount (ETH)
-                      </label>
-                      <input
-                        type="number"
-                        id="amount"
-                        min={campaign.minContribution || 0.01}
-                        step="0.01"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                        placeholder="0.00"
-                        required
-                      />
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Minimum contribution: {campaign.minContribution || 0.01}{" "}
-                        ETH
-                      </p>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isContributing}
-                      className={`w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-colors ${
-                        isContributing ? "opacity-70 cursor-not-allowed" : ""
-                      }`}
-                    >
-                      {isContributing ? "Processing..." : "Contribute Now"}
-                    </button>
-                  </form>
+                  <button
+                    onClick={() => {
+                      setSelectedCampaign(campaign);
+                      setIsPaymentModalOpen(true);
+                    }}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  >
+                    Contribute Now
+                  </button>
 
                   {/* Share buttons */}
                   <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -523,22 +490,29 @@ const CampaignDetails = ({ account, signer, provider }) => {
                         style={{
                           width: `${Math.min(
                             100,
-                            (relatedCampaign.raised / relatedCampaign.goal) *
-                              100
+                            (relatedCampaign.raised / relatedCampaign.goal) * 100
                           )}%`,
                         }}
                       ></div>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm mb-2">
                       <span>{relatedCampaign.raised} ETH</span>
                       <span className="text-gray-500 dark:text-gray-400">
                         {(
-                          (relatedCampaign.raised / relatedCampaign.goal) *
-                          100
-                        ).toFixed(0)}
-                        %
+                          (relatedCampaign.raised / relatedCampaign.goal) * 100
+                        ).toFixed(0)}%
                       </span>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCampaign(relatedCampaign);
+                        setIsPaymentModalOpen(true);
+                      }}
+                      className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
+                    >
+                      Contribute
+                    </button>
                   </div>
                 </motion.div>
               ))}
