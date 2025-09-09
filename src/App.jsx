@@ -1,13 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import { ThemeProvider as ThemeProviderContext } from './context/ThemeContext';
-import Navigation from './components/Navigation';
-import CampaignForm from './components/CampaignForm';
-import CampaignDetails from './components/CampaignDetails';
-import LandingPage from './pages/LandingPage';
-import CampaignsPage from './pages/CampaignsPage';
+import React, { useState, useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
+import { ThemeProvider as ThemeProviderContext } from "./context/ThemeContext";
+import Navigation from "./components/Navigation";
+import CampaignForm from "./components/CampaignForm";
+import CampaignDetails from "./components/CampaignDetails";
+import LandingPage from "./pages/LandingPage";
+import Dashboard from "./pages/Dashboard";
+import CampaignsContainer from "./components/CampaignsContainer";
 
+// Protected route component
+const ProtectedRoute = ({ children, account }) => {
+  const location = useLocation();
+
+  if (!account) {
+    // Redirect to home if not connected
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  return children;
+};
 
 const App = () => {
   const [provider, setProvider] = useState();
@@ -23,11 +41,11 @@ const App = () => {
       const provider = await makeProvider();
       const signer = await makeSigner(provider);
       const accounts = await provider.listAccounts();
-      
+
       setProvider(provider);
       setSigner(signer);
       setAccount(accounts[0]);
-      
+
       // Listen for account changes
       if (provider.provider?.on) {
         provider.provider.on("accountsChanged", (accounts) => {
@@ -37,12 +55,12 @@ const App = () => {
             setProvider(undefined);
           }
         });
-        
+
         provider.provider.on("chainChanged", () => {
           window.location.reload();
         });
       }
-      
+
       // Load campaigns
       await loadCampaigns(provider);
     } catch (err) {
@@ -58,8 +76,16 @@ const App = () => {
       // This would typically interact with your smart contract
       // For now, we'll use dummy data
       setCampaigns([
-        { id: 1, title: "Sample Campaign 1", description: "This is a sample campaign" },
-        { id: 2, title: "Sample Campaign 2", description: "Another sample campaign" },
+        {
+          id: 1,
+          title: "Sample Campaign 1",
+          description: "This is a sample campaign",
+        },
+        {
+          id: 2,
+          title: "Sample Campaign 2",
+          description: "Another sample campaign",
+        },
       ]);
       setIsLoading(false);
     } catch (err) {
@@ -80,7 +106,9 @@ const App = () => {
 
   const handleDonate = async (campaignId, amount, isUSDC = false) => {
     // Implementation for donating to a campaign
-    console.log(`Donating ${amount} ${isUSDC ? 'USDC' : 'ETH'} to campaign ${campaignId}`);
+    console.log(
+      `Donating ${amount} ${isUSDC ? "USDC" : "ETH"} to campaign ${campaignId}`
+    );
   };
 
   const handleWithdraw = async (campaignId, amount) => {
@@ -90,66 +118,62 @@ const App = () => {
 
   const handleTransfer = async (fromCampaignId, toCampaignId, amount) => {
     // Implementation for transferring funds between campaigns
-    console.log(`Transferring ${amount} from campaign ${fromCampaignId} to ${toCampaignId}`);
+    console.log(
+      `Transferring ${amount} from campaign ${fromCampaignId} to ${toCampaignId}`
+    );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      <Navigation account={account} onConnect={connectWallet} />
-      <main className="pt-16"> {/* Add padding to account for fixed header */}
+    <ThemeProviderContext>
+      <div className="min-h-screen bg-white dark:bg-gray-900">
+        <Navigation account={account} connectWallet={connectWallet} />
         <AnimatePresence mode="wait">
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route
-            path="/campaigns"
-            element={
-              <CampaignsPage
-                campaigns={campaigns}
-                onCampaignSelect={setSelectedCampaign}
-              />
-            }
-          />
-          <Route
-            path="/campaigns/:id"
-            element={
-              selectedCampaign ? (
-                <CampaignDetails
-                  campaign={selectedCampaign}
-                  account={account}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-600 dark:text-gray-300">Loading campaign details...</p>
-                </div>
-              )
-            }
-          />
-          <Route
-            path="/create-campaign"
-            element={
-              <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
-                  Create a New Campaign
-                </h1>
-                <CampaignForm
-                  onSubmit={handleCreateCampaign}
-                  loading={isLoading}
-                />
-              </div>
-            }
-          />
-        </Routes>
+          <Routes>
+            <Route
+              path="/"
+              element={<LandingPage connectWallet={connectWallet} />}
+            />
+            <Route path="/campaigns" element={<CampaignsContainer />} />
+            <Route
+              path="/campaigns/:id"
+              element={<CampaignDetails account={account} signer={signer} />}
+            />
+            <Route
+              path="/create-campaign"
+              element={
+                <ProtectedRoute account={account}>
+                  <CampaignForm
+                    signer={signer}
+                    account={account}
+                    onSubmit={handleCreateCampaign}
+                    loading={isLoading}
+                  />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Dashboard Routes */}
+            <Route
+              path="/dashboard/*"
+              element={
+                <ProtectedRoute account={account}>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Redirect to home for unknown routes */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </AnimatePresence>
-      </main>
-    </div>
+      </div>
+    </ThemeProviderContext>
   );
 };
 
 const AppWrapper = () => (
   <Router>
-    <ThemeProviderContext>
-      <App />
-    </ThemeProviderContext>
+    <App />
   </Router>
 );
 
