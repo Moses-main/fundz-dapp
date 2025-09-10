@@ -141,14 +141,12 @@ const App = () => {
             <Route
               path="/create-campaign"
               element={
-                <ProtectedRoute account={account}>
+                // <ProtectedRoute account={account}>
                   <CampaignForm
                     signer={signer}
                     account={account}
-                    onSubmit={handleCreateCampaign}
-                    loading={isLoading}
                   />
-                </ProtectedRoute>
+                // </ProtectedRoute>
               }
             />
 
