@@ -57,7 +57,7 @@ const PaymentModal = ({ isOpen, onClose, campaign, onSuccess }) => {
   const processEthPayment = async (signer, amount) => {
     try {
       const { fundLoom } = await initContracts(signer);
-      const tx = await fundLoom.contribute(campaign.id, {
+      const tx = await fundLoom.donate(campaign.id, {
         value: ethers.parseEther(amount.toString())
       });
       setTxHash(tx.hash);

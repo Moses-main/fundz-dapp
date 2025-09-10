@@ -1,16 +1,59 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Clock, Target, Users } from "lucide-react";
-// In CampaignsPage.js
+import { ArrowRight, Clock, Target, Users, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ethers } from "ethers";
+import { getEthPrice } from "../utils/priceFeed";
 import Footer from "../components/landing/Footer";
 
-const CampaignsPage = ({ campaigns, onCampaignSelect }) => {
+const CampaignsPage = ({ campaigns, onCampaignSelect, provider }) => {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [ethPrice, setEthPrice] = useState(2000); // Default to $2000 if fetch fails
+  const [isLoadingPrice, setIsLoadingPrice] = useState(true);
 
   const navigate = useNavigate();
+
+  // Fetch ETH price
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        setIsLoadingPrice(true);
+        const providerToUse = provider || (window.ethereum ? new ethers.BrowserProvider(window.ethereum) : null);
+        if (providerToUse) {
+          const price = await getEthPrice(providerToUse);
+          setEthPrice(price);
+        }
+      } catch (error) {
+        console.error("Error fetching ETH price:", error);
+      } finally {
+        setIsLoadingPrice(false);
+      }
+    };
+
+    fetchEthPrice();
+    
+    // Set up interval to refresh price every 5 minutes
+    const priceInterval = setInterval(fetchEthPrice, 5 * 60 * 1000);
+    
+    return () => clearInterval(priceInterval);
+  }, [provider]);
+
+  const formatAmount = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const formatEthAmount = (usdAmount) => {
+    const ethAmount = usdAmount / ethPrice;
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4
+    }).format(ethAmount);
+  };
 
   const handleViewCampaign = (campaign) => {
     navigate(
@@ -193,9 +236,15 @@ ${campaign.id}
                     <span className="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
                       {campaign.category || "General"}
                     </span>
-                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {campaign.daysLeft} days left
+                    <div className="flex flex-col space-y-1">
+                      <div className="flex items-center text-sm font-medium text-gray-900 dark:text-white">
+                        <DollarSign className="w-4 h-4 mr-1 text-green-500" />
+                        <span>{formatAmount(campaign.goal)} USDC</span>
+                      </div>
+                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                        <Target className="w-3.5 h-3.5 mr-1 text-indigo-500" />
+                        <span>≈ {isLoadingPrice ? '...' : formatEthAmount(campaign.goal)} ETH</span>
+                      </div>
                     </div>
                   </div>
 
@@ -208,29 +257,25 @@ ${campaign.id}
 
                   <div className="mt-auto">
                     <div className="mb-3">
-                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        <span>Raised: {formatCurrency(campaign.raised)}</span>
-                        <span>
-                          {Math.min(
-                            100,
-                            Math.round((campaign.raised / campaign.goal) * 100)
-                          )}
-                          %
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          Raised: {formatAmount(campaign.raised)} USDC
+                        </span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {Math.min(100, Math.round((campaign.raised / campaign.goal) * 100))}%
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-2">
                         <div
-                          className="bg-gradient-to-r from-indigo-500 to-blue-500 h-2 rounded-full"
+                          className="bg-gradient-to-r from-indigo-500 to-blue-500 h-2.5 rounded-full"
                           style={{
-                            width: `${Math.min(
-                              100,
-                              (campaign.raised / campaign.goal) * 100
-                            )}%`,
+                            width: `${Math.min(100, (campaign.raised / campaign.goal) * 100)}%`,
                           }}
                         ></div>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Goal: {formatCurrency(campaign.goal)}
+                      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <span>Goal: {formatAmount(campaign.goal)} USDC</span>
+                        <span>≈ {isLoadingPrice ? '...' : formatEthAmount(campaign.raised)} / {isLoadingPrice ? '...' : formatEthAmount(campaign.goal)} ETH</span>
                       </div>
                     </div>
 
@@ -250,14 +295,6 @@ ${campaign.id}
                           <ArrowRight className="w-4 h-4 ml-2" />
                         </button>
                       </motion.div>
-                      {/* <Link
-                        to={`/campaigns/${campaign.id}`}
-                        onClick={() => onCampaignSelect?.(campaign)}
-                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                      >
-                        View Campaign
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Link> */}
                     </div>
                   </div>
                 </div>

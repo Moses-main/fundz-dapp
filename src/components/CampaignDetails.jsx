@@ -17,6 +17,7 @@ import {
 import { getCampaign, getCampaigns } from "../lib/campaignService";
 import { toast } from "react-hot-toast";
 import { ethers } from "ethers";
+import { getEthPrice } from "../utils/priceFeed";
 import PaymentModal from "./PaymentModal";
 
 const CampaignDetails = ({ account, signer, provider }) => {
@@ -32,6 +33,8 @@ const CampaignDetails = ({ account, signer, provider }) => {
   const [error, setError] = useState("");
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [ethPrice, setEthPrice] = useState(2000); // Default to $2000 if fetch fails
+  const [isLoadingPrice, setIsLoadingPrice] = useState(true);
 
   // Get the provider to use for contract calls
   const getProvider = async () => {
@@ -62,6 +65,31 @@ const CampaignDetails = ({ account, signer, provider }) => {
     }
   };
 
+  // Fetch ETH price
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        setIsLoadingPrice(true);
+        const providerToUse = provider || (window.ethereum ? new ethers.BrowserProvider(window.ethereum) : null);
+        if (providerToUse) {
+          const price = await getEthPrice(providerToUse);
+          setEthPrice(price);
+        }
+      } catch (error) {
+        console.error("Error fetching ETH price:", error);
+      } finally {
+        setIsLoadingPrice(false);
+      }
+    };
+
+    fetchEthPrice();
+    
+    // Set up interval to refresh price every 5 minutes
+    const priceInterval = setInterval(fetchEthPrice, 5 * 60 * 1000);
+    
+    return () => clearInterval(priceInterval);
+  }, [provider]);
+
   useEffect(() => {
     // If we have campaign in state, we can show it immediately
     // but still fetch fresh data in the background
@@ -71,11 +99,6 @@ const CampaignDetails = ({ account, signer, provider }) => {
 
     // Always fetch fresh data
     fetchCampaign();
-
-    // Cleanup function
-    return () => {
-      // Any cleanup if needed
-    };
   }, [id, signer, provider]);
 
   const handleContribute = async (e) => {
@@ -256,9 +279,14 @@ const CampaignDetails = ({ account, signer, provider }) => {
                           Goal
                         </div>
                         <div>
-                          ${campaign.goal.toLocaleString()} USDC
-                          <div className="text-xs text-gray-500">
-                            ~{(campaign.goal / 2000).toFixed(4)} ETH
+                          <div className="font-medium">
+                            {campaign.goal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ≈ {isLoadingPrice ? '...' : (campaign.goal / ethPrice).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ETH
+                            <div className="text-xs text-gray-400 mt-1">
+                              {isLoadingPrice ? 'Loading ETH price...' : `(1 ETH = $${ethPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -270,9 +298,14 @@ const CampaignDetails = ({ account, signer, provider }) => {
                           Raised
                         </div>
                         <div>
-                          ${campaign.raised.toLocaleString()} USDC
-                          <div className="text-xs text-gray-500">
-                            ~{(campaign.raised / 2000).toFixed(4)} ETH
+                          <div className="font-medium">
+                            {campaign.raised.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ≈ {isLoadingPrice ? '...' : (campaign.raised / ethPrice).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ETH
+                            <div className="text-xs text-gray-400 mt-1">
+                              (${(campaign.raised / campaign.goal * 100).toFixed(1)}% of {campaign.goal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC goal)
+                            </div>
                           </div>
                         </div>
                       </div>
