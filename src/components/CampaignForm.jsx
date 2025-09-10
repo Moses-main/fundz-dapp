@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getContract } from "../lib/ethereum";
-import { CONTRACT_ADDRESS, FUNDLOOM_ABI } from "../lib/contracts";
+import { CONTRACT_ADDRESS, FUNDLOOM_ABI, USDC_ADDRESS, USDC_ABI } from "../lib/contracts";
 import { ethers } from "ethers";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
-export default function CampaignForm({ signer, account }) {
+// Approximate conversion rate (you might want to fetch this from an API in production)
+const USDC_TO_ETH_RATE = 0.0005; // 1 USDC = 0.0005 ETH
+
+export default function CampaignForm({ signer, account, onConnect }) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     charity: "", // Will default to the connected account if empty
-    target: "0.1",
+    targetUSDC: "100", // Default to 100 USDC
     duration: "7", // Default to 7 days
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
+  const [ethAmount, setEthAmount] = useState("0.05"); // Default ETH amount based on 100 USDC
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -24,11 +29,31 @@ export default function CampaignForm({ signer, account }) {
     }));
   };
 
+  // Update ETH amount when USDC amount changes
+  useEffect(() => {
+    const usdcAmount = parseFloat(formData.targetUSDC) || 0;
+    const ethValue = (usdcAmount * USDC_TO_ETH_RATE).toFixed(6);
+    setEthAmount(ethValue);
+  }, [formData.targetUSDC]);
+
+  const handleConnectWallet = async () => {
+    try {
+      setIsConnecting(true);
+      setError("");
+      await onConnect();
+    } catch (err) {
+      console.error("Error connecting wallet:", err);
+      setError("Failed to connect wallet. Please try again.");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!signer) {
-      setError("Please connect your wallet first");
+    if (!signer || !account) {
+      setError("Please connect your wallet to create a campaign");
       return;
     }
 
@@ -37,7 +62,7 @@ export default function CampaignForm({ signer, account }) {
       setError("");
 
       const contract = getContract(CONTRACT_ADDRESS, FUNDLOOM_ABI, signer);
-      const targetInWei = ethers.parseEther(String(formData.target));
+      const targetInWei = ethers.parseEther(ethAmount);
       const durationInSeconds = BigInt(
         Number(formData.duration) * 24 * 60 * 60
       ); // Convert days to seconds
@@ -115,57 +140,68 @@ export default function CampaignForm({ signer, account }) {
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="charity"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Charity Address (leave empty to use your address)
-              </label>
-              <input
-                type="text"
-                id="charity"
-                name="charity"
-                value={formData.charity}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                placeholder="0x... (leave empty to use your connected wallet)"
-              />
-              {!formData.charity && (
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Will use your connected address:{" "}
-                  <span className="font-mono text-xs">{account}</span>
+            {account ? (
+              <div>
+                <label
+                  htmlFor="charity"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Charity Address (leave empty to use your address)
+                </label>
+                <input
+                  type="text"
+                  id="charity"
+                  name="charity"
+                  value={formData.charity}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="0x... (leave empty to use your connected wallet)"
+                />
+                {!formData.charity && (
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Will use your connected address:{" "}
+                    <span className="font-mono text-xs">{account}</span>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md">
+                <p className="text-yellow-700 dark:text-yellow-400 text-sm">
+                  You'll need to connect your wallet to create a campaign
                 </p>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label
-                  htmlFor="target"
+                  htmlFor="targetUSDC"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Funding Goal (ETH) *
+                  Funding Goal (USDC) *
                 </label>
                 <div className="relative rounded-md shadow-sm">
                   <input
                     type="number"
-                    id="target"
-                    name="target"
-                    min="0.01"
-                    step="0.01"
-                    value={formData.target}
+                    id="targetUSDC"
+                    name="targetUSDC"
+                    min="1"
+                    step="1"
+                    value={formData.targetUSDC}
                     onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="0.10"
+                    placeholder="100"
                     required
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <span className="text-gray-500 dark:text-gray-400 sm:text-sm">
-                      ETH
+                      USDC
                     </span>
                   </div>
                 </div>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  ≈ {ethAmount} ETH (1 USDC ≈ {USDC_TO_ETH_RATE} ETH)
+                </p>
               </div>
 
               <div>
@@ -189,16 +225,41 @@ export default function CampaignForm({ signer, account }) {
               </div>
             </div>
 
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                  isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-                }`}
-              >
-                {isSubmitting ? "Creating Campaign..." : "Create Campaign"}
-              </button>
+            <div className="pt-4 space-y-3">
+              {!account ? (
+                <button
+                  type="button"
+                  onClick={handleConnectWallet}
+                  disabled={isConnecting}
+                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                      Connecting...
+                    </>
+                  ) : (
+                    'Connect Wallet to Create Campaign'
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                    isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Campaign'
+                  )}
+                </button>
+              )}
             </div>
           </form>
         </div>
