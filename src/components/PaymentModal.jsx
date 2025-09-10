@@ -1,90 +1,206 @@
-import { useState, useEffect } from "react";
-import React from "react";
+// src/components/PaymentModal.jsx
+import React, { useState, useEffect } from "react";
+import { ethers } from "ethers";
+
+import EthereumProvider from "@walletconnect/ethereum-provider";
 import {
+  Loader2,
   X,
-  ArrowRight,
   Copy,
+  ExternalLink,
   Check,
-  Share2,
+  AlertCircle,
+  ArrowRight,
   Twitter,
   Linkedin,
+  ChevronDown,
 } from "lucide-react";
-import { ethers } from "ethers";
-import { toast } from "react-hot-toast";
+import toast from "react-hot-toast";
 
-export default function PaymentModal({
-  isOpen,
-  onClose,
-  campaign,
-  account,
-  signer,
-}) {
+// Example supported currencies
+const SUPPORTED_CURRENCIES = [
+  { id: "ETH", name: "Ethereum", type: "crypto", icon: "ETH" },
+  { id: "USDT", name: "Tether", type: "crypto", icon: "USDT" },
+  { id: "USD", name: "US Dollar", type: "fiat", icon: "USDC" },
+];
+
+// helper
+const formatAmount = (amount, currency) => {
+  if (!amount) return "";
+  return currency.type === "fiat" ? parseFloat(amount).toFixed(2) : amount;
+};
+
+export default function PaymentModal({ isOpen, onClose, campaign }) {
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("ETH");
+  const [selectedCurrency, setSelectedCurrency] = useState(
+    SUPPORTED_CURRENCIES[0]
+  );
+  const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [txHash, setTxHash] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("idle");
+  const [error, setError] = useState(null);
+  const [txHash, setTxHash] = useState(null);
 
+  // Wallet state
+  const [walletProvider, setWalletProvider] = useState(null);
+  const [walletAddress, setWalletAddress] = useState(null);
+
+  // 🔹 Connect Wallet with WalletConnect v2
+  const connectWallet = async () => {
+    try {
+      setPaymentStatus("connecting");
+
+      const provider = await EthereumProvider.init({
+        projectId: "681f29d9f45ef0405f4f019d2e8b6afd", // 👉 get from https://cloud.walletconnect.com
+        chains: [1], // Ethereum Mainnet
+        optionalChains: [5], // Goerli testnet
+        showQrModal: true,
+      });
+
+      await provider.enable();
+
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      const address = await signer.getAddress();
+
+      setWalletProvider(provider);
+      setWalletAddress(address);
+
+      provider.on("accountsChanged", (accounts) => {
+        setWalletAddress(accounts[0]);
+      });
+
+      provider.on("disconnect", () => {
+        setWalletProvider(null);
+        setWalletAddress(null);
+      });
+
+      toast.success("Wallet connected!");
+      setPaymentStatus("idle");
+    } catch (err) {
+      console.error("Wallet connection failed:", err);
+      setError("Failed to connect wallet. Try again.");
+      setPaymentStatus("error");
+    }
+  };
+
+  // 🔹 Handle payments (crypto & fiat simulation)
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-      toast.error("Please enter a valid amount");
+    setError(null);
+
+    if (!amount) {
+      setError("Please enter an amount");
       return;
     }
-
-    setIsProcessing(true);
+    3;
 
     try {
-      // Simulate payment processing
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      if (selectedCurrency.type === "crypto" && paymentMethod === "wallet") {
+        if (!walletProvider) {
+          await connectWallet();
+          return;
+        }
 
-      // Generate a fake transaction hash for demo
-      const fakeTxHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-      setTxHash(fakeTxHash);
-      setPaymentSuccess(true);
+        setPaymentStatus("sending");
+        const ethersProvider = new ethers.BrowserProvider(walletProvider);
+        const signer = await ethersProvider.getSigner();
 
-      // Reset form after success
-      setAmount("");
-    } catch (error) {
-      console.error("Payment error:", error);
-      toast.error(error.message || "Payment failed");
+        const tx = await signer.sendTransaction({
+          to: campaign?.walletAddress,
+          value: ethers.parseEther(amount),
+        });
+
+        setTxHash(tx.hash);
+        await tx.wait();
+
+        setPaymentStatus("success");
+        toast.success("Payment processed successfully!");
+      } else {
+        // Fiat (simulate)
+        setPaymentStatus("sending");
+        await new Promise((res) => setTimeout(res, 2000));
+        setPaymentStatus("success");
+        toast.success(
+          `Payment of ${formatAmount(amount, selectedCurrency)} ${
+            selectedCurrency.id
+          } processed successfully!`
+        );
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+      setError(err.message || "An error occurred");
+      setPaymentStatus("error");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard!");
+  const handleClose = () => {
+    setAmount("");
+    setError(null);
+    setPaymentStatus("idle");
+    setWalletProvider(null);
+    setWalletAddress(null);
+    setTxHash(null);
+    onClose();
   };
 
-  const shareOnTwitter = () => {
-    const text = `I just contributed to "${campaign?.title}" on Fundloom! Join me in supporting this amazing cause.`;
-    window.open(
-      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${
-        window.location.href
-      }`,
-      "_blank"
-    );
-  };
+  // Loading state component
+  const LoadingState = () => (
+    <div className="flex flex-col items-center justify-center py-8">
+      <Loader2 className="h-12 w-12 text-indigo-600 dark:text-indigo-400 animate-spin mb-4" />
+      <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
+        {getStatusMessage()}
+      </p>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+        This may take a few moments...
+      </p>
+    </div>
+  );
 
-  const shareOnLinkedIn = () => {
-    const url = encodeURIComponent(window.location.href);
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
-      "_blank"
-    );
-  };
+  // Error state component
+  const ErrorState = () => (
+    <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+      <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+        <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+      </div>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
+        Payment Failed
+      </h3>
+      <p className="text-gray-600 dark:text-gray-300 mb-6">
+        {error || "An error occurred while processing your payment."}
+      </p>
+      <div className="flex space-x-3">
+        <button
+          type="button"
+          onClick={handleClose}
+          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Close
+        </button>
+        <button
+          type="button"
+          onClick={() => setPaymentStatus("idle")}
+          className="flex-1 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
 
+  // Don't render if not open
   if (!isOpen) return null;
 
-  if (paymentSuccess) {
+  // Payment success screen
+  if (paymentStatus === "success") {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 relative">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
           >
             <X className="h-6 w-6" />
@@ -95,61 +211,110 @@ export default function PaymentModal({
               <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Thank You!
+              Payment Successful!
             </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Your contribution of {amount} {currency} to "{campaign?.title}"
-              was successful!
+              Thank you for your contribution to {campaign?.title}. Your support
+              means a lot!
             </p>
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6 text-left">
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  Transaction:
-                </span>
-                <div className="flex items-center">
-                  <span className="text-sm font-mono mr-2">
-                    {txHash.slice(0, 6)}...{txHash.slice(-4)}
+            {txHash && (
+              <div className="mb-6 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Transaction Hash:
                   </span>
                   <button
-                    onClick={() => copyToClipboard(txHash)}
-                    className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                    onClick={() => {
+                      navigator.clipboard.writeText(txHash);
+                      toast.success("Transaction hash copied to clipboard");
+                    }}
+                    className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-sm font-medium flex items-center"
                   >
-                    <Copy className="h-4 w-4" />
+                    {`${txHash.substring(0, 6)}...${txHash.substring(
+                      txHash.length - 4
+                    )}`}
+                    <Copy className="ml-1 h-3.5 w-3.5" />
                   </button>
                 </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="font-medium text-gray-700 dark:text-gray-300">
-                Share this campaign
-              </h4>
-              <div className="flex justify-center space-x-4">
-                <button
-                  onClick={shareOnTwitter}
-                  className="p-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800/50 transition-colors"
-                  title="Share on Twitter"
+                <a
+                  href={`https://goerli.etherscan.io/tx/${txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
-                  <Twitter className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={shareOnLinkedIn}
-                  className="p-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800/50 transition-colors"
-                  title="Share on LinkedIn"
-                >
-                  <Linkedin className="h-5 w-5" />
-                </button>
+                  View on Etherscan <ExternalLink className="ml-1 h-3 w-3" />
+                </a>
               </div>
+            )}
 
+            <div className="flex flex-col space-y-3">
               <button
-                onClick={onClose}
-                className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                onClick={handleClose}
+                className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Back to Campaign
               </button>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    const tweetText = `I just contributed to "${campaign?.title}" on @Fundloom! Check it out!`;
+                    window.open(
+                      `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                        tweetText
+                      )}`,
+                      "_blank"
+                    );
+                  }}
+                  className="flex-1 flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                  <Twitter className="h-4 w-4 mr-2" />
+                  Share on Twitter
+                </button>
+                <button
+                  onClick={() => {
+                    const linkedInText = `I just contributed to "${campaign?.title}" on Fundloom!`;
+                    window.open(
+                      `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(
+                        window.location.href
+                      )}&title=${encodeURIComponent(
+                        "Check out this campaign on Fundloom"
+                      )}&summary=${encodeURIComponent(linkedInText)}`,
+                      "_blank"
+                    );
+                  }}
+                  className="flex-1 flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                  <Linkedin className="h-4 w-4 mr-2" />
+                  Share on LinkedIn
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading or error state if needed
+  if (
+    ["connecting", "approving", "sending", "confirming"].includes(paymentStatus)
+  ) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 relative">
+          <LoadingState />
+        </div>
+      </div>
+    );
+  }
+
+  if (paymentStatus === "error") {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 relative">
+          <ErrorState />
         </div>
       </div>
     );
@@ -159,7 +324,7 @@ export default function PaymentModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 relative">
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
         >
           <X className="h-6 w-6" />
@@ -170,78 +335,235 @@ export default function PaymentModal({
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
           Your support helps make this campaign a success!
+          {walletAddress && (
+            <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Connected:{" "}
+              {`${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}
+            </span>
+          )}
         </p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Amount Input */}
           <div>
-            <label
-              htmlFor="amount"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Amount
-            </label>
-            <div className="relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-gray-500 sm:text-sm">
-                  {currency === "ETH" ? "Ξ" : currency === "USDC" ? "$" : "₿"}
+            <div className="flex justify-between items-center mb-1">
+              <label
+                htmlFor="amount"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Amount
+              </label>
+              {/* {gasEstimate && selectedCurrency.type === "crypto" && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Gas: {gasEstimate}
                 </span>
-              </div>
-              <input
-                type="number"
-                id="amount"
-                min="0.000000000000000001"
-                step="0.000000000000000001"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-                placeholder="0.00"
-                required
-              />
-              <div className="absolute inset-y-0 right-0 flex items-center">
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="focus:ring-indigo-500 focus:border-indigo-500 h-full py-0 pl-2 pr-7 border-transparent bg-transparent text-gray-500 dark:text-gray-300 sm:text-sm rounded-r-md"
+              )} */}
+            </div>
+
+            <div className="flex rounded-md shadow-sm">
+              {/* Currency Selector */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIsCurrencyDropdownOpen(!isCurrencyDropdownOpen)
+                  }
+                  className="inline-flex items-center px-4 py-2 border border-r-0 border-gray-300 dark:border-gray-600 rounded-l-md bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  <option value="ETH">ETH</option>
-                  <option value="USDC">USDC</option>
-                  <option value="USDT">USDT</option>
-                </select>
+                  {selectedCurrency.icon}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </button>
+
+                {isCurrencyDropdownOpen && (
+                  <div className="absolute z-10 mt-1 w-48 rounded-md bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
+                    <div className="py-1">
+                      <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                        Cryptocurrency
+                      </div>
+                      {SUPPORTED_CURRENCIES.filter(
+                        (c) => c.type === "crypto"
+                      ).map((currency) => (
+                        <button
+                          key={currency.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCurrency(currency);
+                            setIsCurrencyDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm flex items-center ${
+                            selectedCurrency.id === currency.id
+                              ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-200"
+                              : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          <span className="mr-2">{currency.icon}</span>
+                          {currency.name}
+                        </button>
+                      ))}
+
+                      <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-t border-b border-gray-100 dark:border-gray-700">
+                        Fiat
+                      </div>
+                      {SUPPORTED_CURRENCIES.filter(
+                        (c) => c.type === "fiat"
+                      ).map((currency) => (
+                        <button
+                          key={currency.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCurrency(currency);
+                            setIsCurrencyDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm flex items-center ${
+                            selectedCurrency.id === currency.id
+                              ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-200"
+                              : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          <span className="mr-2">{currency.icon}</span>
+                          {currency.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1">
+                <input
+                  type="number"
+                  id="amount"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder={`0.00 ${selectedCurrency.id}`}
+                  className="block w-full px-4 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                  min="0"
+                  step={
+                    selectedCurrency.type === "fiat"
+                      ? "0.01"
+                      : "0.000000000000000001"
+                  }
+                  disabled={isProcessing}
+                />
               </div>
             </div>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Min. contribution: {campaign.minContribution || "0.01"} ETH
-            </p>
+
+            <div className="flex justify-between mt-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                ≈ $0.00 USD
+              </span>
+              <button
+                type="button"
+                onClick={() => setAmount("10")}
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
+              >
+                Use 10 {selectedCurrency.id}
+              </button>
+            </div>
           </div>
 
-          {/* Payment Method */}
-          <div>
+          {/* Payment Method Selector */}
+          <div className="pt-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Payment Method
             </label>
-            <div className="grid grid-cols-2 gap-2">
+
+            <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setPaymentMethod("wallet")}
-                className={`flex items-center justify-center p-3 rounded-lg border ${
+                className={`p-3 border rounded-lg text-left ${
                   paymentMethod === "wallet"
-                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30"
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
                     : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 }`}
+                disabled={selectedCurrency.type === "fiat"}
               >
-                <span className="text-sm font-medium">Wallet</span>
+                <div className="flex items-center">
+                  <div
+                    className={`p-1.5 rounded-full mr-2 ${
+                      paymentMethod === "wallet"
+                        ? "bg-indigo-100 dark:bg-indigo-800/50"
+                        : "bg-gray-100 dark:bg-gray-700"
+                    }`}
+                  >
+                    <svg
+                      className="h-5 w-5 text-indigo-600 dark:text-indigo-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {selectedCurrency.type === "crypto"
+                        ? "Crypto Wallet"
+                        : "Bank Transfer"}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedCurrency.type === "crypto"
+                        ? "Connect your wallet"
+                        : "Direct bank transfer (coming soon)"}
+                    </p>
+                  </div>
+                </div>
               </button>
+
               <button
                 type="button"
                 onClick={() => setPaymentMethod("card")}
-                className={`flex items-center justify-center p-3 rounded-lg border ${
+                className={`p-3 border rounded-lg text-left ${
                   paymentMethod === "card"
-                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30"
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
                     : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 }`}
               >
-                <span className="text-sm font-medium">Credit/Debit Card</span>
+                <div className="flex items-center">
+                  <div
+                    className={`p-1.5 rounded-full mr-2 ${
+                      paymentMethod === "card"
+                        ? "bg-indigo-100 dark:bg-indigo-800/50"
+                        : "bg-gray-100 dark:bg-gray-700"
+                    }`}
+                  >
+                    <svg
+                      className="h-5 w-5 text-indigo-600 dark:text-indigo-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      Credit/Debit Card
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedCurrency.type === "crypto"
+                        ? `Buy ${selectedCurrency.id} with card`
+                        : `Pay with card (${selectedCurrency.id})`}
+                    </p>
+                  </div>
+                </div>
               </button>
             </div>
 
@@ -298,20 +620,47 @@ export default function PaymentModal({
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isProcessing}
+            disabled={
+              isProcessing ||
+              (selectedCurrency.type === "crypto" &&
+                paymentMethod === "wallet" &&
+                !walletProvider)
+            }
             className={`w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-              isProcessing ? "opacity-70 cursor-not-allowed" : ""
+              isProcessing ||
+              (selectedCurrency.type === "crypto" &&
+                paymentMethod === "wallet" &&
+                !walletProvider)
+                ? "opacity-70 cursor-not-allowed"
+                : ""
             }`}
           >
             {isProcessing ? (
-              "Processing..."
+              <>
+                <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
+                {getStatusMessage()}
+              </>
             ) : (
               <>
-                Contribute {amount ? `${amount} ${currency}` : ""}
+                {selectedCurrency.type === "fiat"
+                  ? `Pay ${
+                      amount ? formatAmount(amount, selectedCurrency) : ""
+                    } ${selectedCurrency.id}`
+                  : paymentMethod === "wallet"
+                  ? `Contribute ${amount || ""} ${selectedCurrency.id}`
+                  : `Buy ${selectedCurrency.id} with Card`}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
           </button>
+
+          {selectedCurrency.type === "crypto" &&
+            paymentMethod === "wallet" &&
+            !walletProvider && (
+              <p className="mt-2 text-xs text-center text-amber-600 dark:text-amber-400">
+                Please connect your wallet to continue
+              </p>
+            )}
 
           <p className="text-xs text-center text-gray-500 dark:text-gray-400">
             By contributing, you agree to our Terms of Service and Privacy

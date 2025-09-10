@@ -1,54 +1,54 @@
-import React, { useEffect } from 'react';
-import Hero from '../components/landing/Hero';
-import Features from '../components/landing/Features';
-import Testimonials from '../components/landing/Testimonials';
-import Footer from '../components/landing/Footer';
+import React, { useEffect } from "react";
+import Hero from "../components/landing/Hero";
+import Features from "../components/landing/Features";
+import Testimonials from "../components/landing/Testimonials";
+import Footer from "../components/landing/Footer";
 
 const LandingPage = () => {
   // Add custom scroll behavior for smooth scrolling
   useEffect(() => {
     // Smooth scroll for anchor links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
+    document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+      anchor.addEventListener("click", function (e) {
         e.preventDefault();
-        const targetId = this.getAttribute('href');
-        if (targetId === '#') return;
-        
+        const targetId = this.getAttribute("href");
+        if (targetId === "#") return;
+
         const targetElement = document.querySelector(targetId);
         if (targetElement) {
           window.scrollTo({
             top: targetElement.offsetTop - 100,
-            behavior: 'smooth'
+            behavior: "smooth",
           });
         }
       });
     });
-    
+
     // Add animation classes on scroll
     const observerOptions = {
       threshold: 0.1,
-      rootMargin: '0px 0px -100px 0px'
+      rootMargin: "0px 0px -100px 0px",
     };
-    
+
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
+      entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('animate-fadeInUp');
+          entry.target.classList.add("animate-fadeInUp");
           observer.unobserve(entry.target);
         }
       });
     }, observerOptions);
-    
-    document.querySelectorAll('.animate-on-scroll').forEach(el => {
+
+    document.querySelectorAll(".animate-on-scroll").forEach((el) => {
       observer.observe(el);
     });
-    
+
     return () => observer.disconnect();
   }, []);
-  
+
   return (
     <div className="min-h-screen flex flex-col">
-      <style jsx global>{`
+      <style>{`
         @keyframes float {
           0% { transform: translateY(0px); }
           50% { transform: translateY(-10px); }
@@ -89,7 +89,7 @@ const LandingPage = () => {
           100% { transform: translate(0px, 0px) scale(1); }
         }
       `}</style>
-      
+
       <main className="flex-grow">
         <Hero />
         <Features />

@@ -11,10 +11,6 @@ const CampaignsPage = ({ campaigns, onCampaignSelect }) => {
 
   const navigate = useNavigate();
 
-  // const handleViewCampaign = (campaign) => {
-  //   navigate(`/campaigns/${campaign.id}`, { state: { provider } });
-  // };
-
   const handleViewCampaign = (campaign) => {
     navigate(
       `/campaigns/
@@ -51,7 +47,7 @@ ${campaign.id}
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen mt-10 bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -92,7 +88,7 @@ ${campaign.id}
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 filter === "all"
                   ? "bg-indigo-600 text-white"
                   : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -102,33 +98,33 @@ ${campaign.id}
             </button>
             <button
               onClick={() => setFilter("trending")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 filter === "trending"
                   ? "bg-indigo-600 text-white"
                   : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
-              🔥 Trending
+              Trending
             </button>
             <button
               onClick={() => setFilter("ending-soon")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 filter === "ending-soon"
                   ? "bg-indigo-600 text-white"
                   : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
-              ⏰ Ending Soon
+              Ending Soon
             </button>
             <button
               onClick={() => setFilter("new")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 filter === "new"
                   ? "bg-indigo-600 text-white"
                   : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
-              🆕 New & Noteworthy
+              New & Noteworthy
             </button>
           </div>
         </div>
@@ -145,14 +141,30 @@ ${campaign.id}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative w-full aspect-[4/3] overflow-hidden">
                   <img
-                    src={
-                      campaign.image ||
-                      "https://via.placeholder.com/400x300?text=Campaign+Image"
+                    src={campaign.image || 
+                      (() => {
+                        // Map specific titles to their corresponding images
+                        const title = campaign.title.toLowerCase();
+                        if (title.includes('daughters')) return "/save-daughters.jpg";
+                        if (title.includes('hope') || title.includes('orphanage')) return "/give-hope.jpg";
+                        if (title.includes('tree') || title.includes('plant')) return "/plant-trees.jpg";
+                        // Default fallback
+                        return "/save-daughters.jpg";
+                      })()
                     }
                     alt={campaign.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-center"
+                    loading="eager"
+                    onError={(e) => {
+                      // Fallback to first image if the specified one fails to load
+                      e.target.src = "/save-daughters.jpg";
+                    }}
+                    style={{
+                      minHeight: '100%',
+                      minWidth: '100%',
+                    }}
                   />
                   <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                     <div className="flex items-center space-x-2">
