@@ -138,90 +138,8 @@ const CampaignDetails = ({ account, signer, provider }) => {
   const progress = (campaign.raised / campaign.goal) * 100;
   const timeLeft = calculateTimeLeft(campaign.deadline);
 
-  // return (
-  //   <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
-  //     <div className="container mx-auto px-4 py-6">
-  //       <button
-  //         onClick={() => navigate(-1)}
-  //         className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 mb-6"
-  //       >
-  //         <ArrowLeft className="h-5 w-5 mr-2" />
-  //         Back to Campaigns
-  //       </button>
-
-  //       <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl overflow-hidden">
-  //         <div className="p-6">
-  //           <h1 className="text-3xl font-bold mb-4">{campaign.title}</h1>
-  //           <p className="mb-4">{campaign.description}</p>
-  //           <div className="flex space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
-  //             <User className="w-4 h-4" /> <span>{campaign.creator}</span>
-  //             <Clock className="w-4 h-4" /> <span>{timeLeft}</span>
-  //           </div>
-
-  //           {loading && (
-  //             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-  //               Updating campaign details...
-  //             </p>
-  //           )}
-
-  //           <form onSubmit={handleContribute} className="space-y-4 mt-6">
-  //             <input
-  //               type="number"
-  //               placeholder="Amount in ETH"
-  //               value={amount}
-  //               onChange={(e) => setAmount(e.target.value)}
-  //               className="w-full px-4 py-2 border rounded-lg"
-  //             />
-  //             <button
-  //               type="submit"
-  //               disabled={isContributing}
-  //               className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
-  //             >
-  //               {isContributing ? "Processing..." : "Contribute Now"}
-  //             </button>
-  //           </form>
-  //         </div>
-  //       </div>
-
-  //       {relatedCampaigns.length > 0 && (
-  //         <div className="mt-12">
-  //           <h2 className="text-2xl font-bold mb-4">Related Campaigns</h2>
-  //           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-  //             {relatedCampaigns.map((rc) => (
-  //               <motion.div
-  //                 key={rc.id}
-  //                 className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden cursor-pointer"
-  //                 onClick={() =>
-  //                   navigate(`/campaigns/${rc.id}`, { state: { campaign: rc } })
-  //                 }
-  //                 whileHover={{ y: -3 }}
-  //               >
-  //                 <div className="h-40 bg-gray-200 dark:bg-gray-700">
-  //                   {rc.image && (
-  //                     <img
-  //                       src={rc.image}
-  //                       alt={rc.title}
-  //                       className="w-full h-full object-cover"
-  //                     />
-  //                   )}
-  //                 </div>
-  //                 <div className="p-4">
-  //                   <h3 className="font-medium mb-1">{rc.title}</h3>
-  //                   <div className="text-sm text-gray-500">
-  //                     {calculateTimeLeft(rc.deadline)}
-  //                   </div>
-  //                 </div>
-  //               </motion.div>
-  //             ))}
-  //           </div>
-  //         </div>
-  //       )}
-  //     </div>
-  //   </div>
-  // );
-  // Replace the return statement with this updated UI
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div className="min-h-screen mt-20 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
@@ -336,7 +254,12 @@ const CampaignDetails = ({ account, signer, provider }) => {
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           Goal
                         </div>
-                        <div>{campaign.goal} ETH</div>
+                        <div>
+                          ${campaign.goal.toLocaleString()} USDC
+                          <div className="text-xs text-gray-500">
+                            ~{(campaign.goal / 2000).toFixed(4)} ETH
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -345,7 +268,12 @@ const CampaignDetails = ({ account, signer, provider }) => {
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           Raised
                         </div>
-                        <div>{campaign.raised} ETH</div>
+                        <div>
+                          ${campaign.raised.toLocaleString()} USDC
+                          <div className="text-xs text-gray-500">
+                            ~{(campaign.raised / 2000).toFixed(4)} ETH
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -376,7 +304,12 @@ const CampaignDetails = ({ account, signer, provider }) => {
                         Funded
                       </span>
                       <span className="text-gray-500 dark:text-gray-400">
-                        {campaign.raised} ETH of {campaign.goal} ETH
+                        ${campaign.raised.toLocaleString()} of $
+                        {campaign.goal.toLocaleString()} USDC
+                        <span className="block text-xs">
+                          ({(campaign.raised / 2000).toFixed(4)} of{" "}
+                          {(campaign.goal / 2000).toFixed(4)} ETH)
+                        </span>
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
@@ -393,15 +326,30 @@ const CampaignDetails = ({ account, signer, provider }) => {
                   </div>
 
                   {/* Contribution form */}
-                  <button
-                    onClick={() => {
-                      setSelectedCampaign(campaign);
-                      setIsPaymentModalOpen(true);
-                    }}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-                  >
-                    Contribute Now
-                  </button>
+                  <div className="relative group">
+                    <button
+                      onClick={() => {
+                        setSelectedCampaign(campaign);
+                        setIsPaymentModalOpen(true);
+                      }}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                    >
+                      Contribute to this Campaign
+                    </button>
+                    <div className="absolute hidden group-hover:block bg-gray-900 text-white text-xs rounded p-2 w-48 -left-1/2 -top-12 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                      <div className="text-center">
+                        <div>${campaign.goal - campaign.raised} USDC</div>
+                        <div className="text-gray-300">
+                          ~
+                          {((campaign.goal - campaign.raised) / 2000).toFixed(
+                            4
+                          )}{" "}
+                          ETH
+                        </div>
+                      </div>
+                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900"></div>
+                    </div>
+                  </div>
 
                   {/* Share buttons */}
                   <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -479,7 +427,7 @@ const CampaignDetails = ({ account, signer, provider }) => {
                   whileHover={{ y: -4 }}
                   onClick={() => {
                     navigate(`/campaigns/${relatedCampaign.id}`, {
-                      state: { campaign: relatedCampaign }
+                      state: { campaign: relatedCampaign },
                     });
                   }}
                 >
