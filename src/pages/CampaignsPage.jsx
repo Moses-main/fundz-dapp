@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Clock, Target, Users } from "lucide-react";
 // In CampaignsPage.js
 import { useNavigate } from "react-router-dom";
+import Footer from "../components/landing/Footer";
 
 const CampaignsPage = ({ campaigns, onCampaignSelect }) => {
   const [filter, setFilter] = useState("all");
@@ -47,8 +48,8 @@ ${campaign.id}
   };
 
   return (
-    <div className="min-h-screen mt-10 bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen mt-10 bg-gray-50  dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto mb-20">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Discover Amazing Campaigns
@@ -143,13 +144,20 @@ ${campaign.id}
               >
                 <div className="relative w-full aspect-[4/3] overflow-hidden">
                   <img
-                    src={campaign.image || 
+                    src={
+                      campaign.image ||
                       (() => {
                         // Map specific titles to their corresponding images
                         const title = campaign.title.toLowerCase();
-                        if (title.includes('daughters')) return "/save-daughters.jpg";
-                        if (title.includes('hope') || title.includes('orphanage')) return "/give-hope.jpg";
-                        if (title.includes('tree') || title.includes('plant')) return "/plant-trees.jpg";
+                        if (title.includes("daughters"))
+                          return "/save-daughters.jpg";
+                        if (
+                          title.includes("hope") ||
+                          title.includes("orphanage")
+                        )
+                          return "/give-hope.jpg";
+                        if (title.includes("tree") || title.includes("plant"))
+                          return "/plant-trees.jpg";
                         // Default fallback
                         return "/save-daughters.jpg";
                       })()
@@ -162,8 +170,8 @@ ${campaign.id}
                       e.target.src = "/save-daughters.jpg";
                     }}
                     style={{
-                      minHeight: '100%',
-                      minWidth: '100%',
+                      minHeight: "100%",
+                      minWidth: "100%",
                     }}
                   />
                   <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
@@ -270,6 +278,7 @@ ${campaign.id}
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 };

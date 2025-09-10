@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Clock, User, Target, Users, Share2, Copy, Globe, Calendar, DollarSign, ArrowUpRight } from "lucide-react";
+import {
+  ArrowLeft,
+  Clock,
+  User,
+  Target,
+  Users,
+  Share2,
+  Copy,
+  Globe,
+  Calendar,
+  DollarSign,
+  ArrowUpRight,
+} from "lucide-react";
 import { getCampaign, getCampaigns } from "../lib/campaignService";
 import { toast } from "react-hot-toast";
 import { ethers } from "ethers";
@@ -231,17 +243,31 @@ const CampaignDetails = ({ account, signer, provider }) => {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
           {/* Campaign header with image */}
           <div className="relative h-64 md:h-80 w-full bg-gray-200 dark:bg-gray-700">
-            {campaign.image ? (
-              <img
-                src={campaign.image}
-                alt={campaign.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                No image available
-              </div>
-            )}
+            <img
+              src={
+                campaign.image ||
+                (() => {
+                  // Map specific titles to their corresponding images
+                  const title = campaign.title.toLowerCase();
+                  if (title.includes("daughters")) return "/save-daughters.jpg";
+                  if (title.includes("hope") || title.includes("orphanage"))
+                    return "/give-hope.jpg";
+                  if (title.includes("tree") || title.includes("plant"))
+                    return "/plant-trees.jpg";
+                  // Default fallback
+                  return "/save-daughters.jpg";
+                })()
+              }
+              alt={campaign.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = "/save-daughters.jpg";
+              }}
+              style={{
+                minHeight: "100%",
+                minWidth: "100%",
+              }}
+            />
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className="px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
@@ -451,30 +477,12 @@ const CampaignDetails = ({ account, signer, provider }) => {
                   key={relatedCampaign.id}
                   className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                   whileHover={{ y: -4 }}
-                  onClick={() =>
+                  onClick={() => {
                     navigate(`/campaigns/${relatedCampaign.id}`, {
-                      state: { campaign: relatedCampaign },
-                    })
-                  }
+                      state: { campaign: relatedCampaign }
+                    });
+                  }}
                 >
-                  <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
-                    {relatedCampaign.image ? (
-                      <img
-                        src={relatedCampaign.image}
-                        alt={relatedCampaign.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        No image
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                      <h3 className="font-medium text-white line-clamp-1">
-                        {relatedCampaign.title}
-                      </h3>
-                    </div>
-                  </div>
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
@@ -490,7 +498,8 @@ const CampaignDetails = ({ account, signer, provider }) => {
                         style={{
                           width: `${Math.min(
                             100,
-                            (relatedCampaign.raised / relatedCampaign.goal) * 100
+                            (relatedCampaign.raised / relatedCampaign.goal) *
+                              100
                           )}%`,
                         }}
                       ></div>
@@ -499,8 +508,10 @@ const CampaignDetails = ({ account, signer, provider }) => {
                       <span>{relatedCampaign.raised} ETH</span>
                       <span className="text-gray-500 dark:text-gray-400">
                         {(
-                          (relatedCampaign.raised / relatedCampaign.goal) * 100
-                        ).toFixed(0)}%
+                          (relatedCampaign.raised / relatedCampaign.goal) *
+                          100
+                        ).toFixed(0)}
+                        %
                       </span>
                     </div>
                     <button
