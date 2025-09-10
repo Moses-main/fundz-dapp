@@ -146,6 +146,7 @@ const CampaignDetails = ({ account, signer, provider }) => {
         campaign={selectedCampaign || campaign}
         account={account}
         signer={signer}
+        onSuccess={fetchCampaign}
       />
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Back button */}

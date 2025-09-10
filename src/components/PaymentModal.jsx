@@ -11,7 +11,7 @@ const SUPPORTED_CURRENCIES = [
   { id: 'USDT', name: 'Tether', type: 'crypto', icon: 'USDT' },
 ];
 
-const PaymentModal = ({ isOpen, onClose, campaign }) => {
+const PaymentModal = ({ isOpen, onClose, campaign, onSuccess }) => {
   // Form state
   const [amount, setAmount] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState(SUPPORTED_CURRENCIES[0]);
@@ -131,6 +131,12 @@ const PaymentModal = ({ isOpen, onClose, campaign }) => {
       if (success) {
         setPaymentStatus('success');
         toast.success('Contribution successful!');
+        
+        // Call the onSuccess callback if provided
+        if (onSuccess) {
+          await onSuccess();
+        }
+        
         // Close modal after 2 seconds
         setTimeout(() => onClose(true), 2000);
       }

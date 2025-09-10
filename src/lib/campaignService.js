@@ -28,25 +28,28 @@ export const getCampaign = async (id, provider) => {
     };
 
     // Convert BigNumber values to strings for easier handling
-    return {
+    const formattedCampaign = {
       id: id.toString(),
-      title: campaignData.name || 'Unnamed Campaign',
+      title: campaignData.name || campaignData.title || 'Unnamed Campaign',
       description: campaignData.description || 'No description provided',
       creator: campaignData.creator || '0x0000000000000000000000000000000000000000',
-      image: campaignData.imageUrl || '',
+      image: campaignData.image || campaignData.imageUrl || '',
       category: campaignData.category || 'General',
-      goal: parseFloat(formatEther(campaignData.goal || 0)),
-      raised: parseFloat(formatEther(campaignData.amountRaised || 0)),
+      goal: parseFloat(formatEther(campaignData.goal || campaignData.targetAmount || 0)),
+      raised: parseFloat(formatEther(campaignData.raised || campaignData.amountRaised || 0)),
       startDate: campaignData.startTime ? new Date(Number(campaignData.startTime) * 1000) : new Date(),
       endDate: campaignData.endTime ? new Date(Number(campaignData.endTime) * 1000) : new Date(),
       deadline: campaignData.deadline ? Number(campaignData.deadline) : Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // Default to 30 days from now
       minContribution: parseFloat(formatEther(campaignData.minContribution || 0)),
-      backersCount: Number(campaignData.backersCount || 0),
+      backersCount: Number(campaignData.backersCount || campaignData.totalDonors || 0),
       isActive: Boolean(campaignData.isActive),
       isApproved: Boolean(campaignData.isApproved),
-      totalDonors: Number(campaignData.totalDonors || 0),
-      isFundsTransferred: Boolean(campaignData.isFundsTransferred)
+      totalDonors: Number(campaignData.totalDonors || campaignData.backersCount || 0),
+      isFundsTransferred: Boolean(campaignData.isFundsTransferred || false)
     };
+
+    console.log('Formatted campaign data:', formattedCampaign);
+    return formattedCampaign;
   } catch (error) {
     console.error("Error fetching campaign:", error);
     throw error;
