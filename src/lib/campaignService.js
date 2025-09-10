@@ -1,8 +1,19 @@
 import { ethers } from "ethers";
-import { CONTRACT_ADDRESS, FUNDLOOM_ABI } from './contracts';
+import { CONTRACT_ADDRESS, FUNDLOOM_ABI, USDC_ADDRESS, USDC_ABI } from './contracts';
+
+// Helper function to create contract instance
+const getContract = (address, abi, provider) => {
+  return new ethers.Contract(address, abi, provider);
+};
+
+// Helper function to get signer from provider
+const getSigner = async (provider) => {
+  const signer = await provider.getSigner();
+  return signer;
+};
 
 // Function to get a single campaign by ID
-export const getCampaign = async (id, provider) => {
+const getCampaign = async (id, provider) => {
   try {
     // If provider is a signer, get its provider
     const providerToUse = provider?.provider ? provider : provider;
@@ -56,8 +67,45 @@ export const getCampaign = async (id, provider) => {
   }
 };
 
+// Function to get campaigns by creator
+const getCampaignsByCreator = async (creatorAddress, provider) => {
+  try {
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, FUNDLOOM_ABI, provider);
+    const campaignCount = await contract.campaignIdCounter();
+    const campaigns = [];
+
+    for (let i = 1; i <= campaignCount; i++) {
+      try {
+        const campaign = await contract.campaigns(i);
+        if (campaign.creator.toLowerCase() === creatorAddress.toLowerCase()) {
+          campaigns.push({
+            id: i.toString(),
+            ...campaign,
+            creator: campaign.creator,
+            charity: campaign.charity,
+            targetAmount: parseFloat(ethers.formatEther(campaign.targetAmount)),
+            amountRaised: parseFloat(ethers.formatEther(campaign.amountRaised || 0)),
+            deadline: new Date(Number(campaign.deadline) * 1000),
+            isActive: campaign.isActive,
+            // Add other campaign fields as needed
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching campaign ${i}:`, error);
+        // Continue with next campaign if there's an error with this one
+        continue;
+      }
+    }
+
+    return campaigns;
+  } catch (error) {
+    console.error('Error in getCampaignsByCreator:', error);
+    throw error;
+  }
+};
+
 // Function to get all campaigns
-export const getCampaigns = async (provider) => {
+const getCampaigns = async (provider) => {
   try {
     // If provider is a signer, get its provider
     const providerToUse = provider?.provider ? provider : provider;
@@ -95,4 +143,25 @@ export const getCampaigns = async (provider) => {
     console.error("Error in getCampaigns:", error);
     throw error;
   }
+};
+
+// Function to withdraw funds from a campaign
+const withdrawFunds = async (campaignId, signer) => {
+  try {
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, FUNDLOOM_ABI, signer);
+    const tx = await contract.withdraw(campaignId);
+    await tx.wait();
+    return { success: true, txHash: tx.hash };
+  } catch (error) {
+    console.error('Error withdrawing funds:', error);
+    throw new Error(error.message || 'Failed to withdraw funds');
+  }
+};
+
+// Export all functions
+export { 
+  getCampaign, 
+  getCampaigns, 
+  getCampaignsByCreator,
+  withdrawFunds 
 };

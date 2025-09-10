@@ -51,11 +51,16 @@ const AGGREGATOR_V3_ABI = [
   },
 ];
 
-// Mainnet ETH/USD price feed
-const ETH_USD_PRICE_FEED = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
+// Sepolia ETH/USD price feed (Chainlink)
+const ETH_USD_PRICE_FEED = "0x694AA1769357215DE4FAC081bf1f309aDC325306";
 
 export const getEthPrice = async (provider) => {
   try {
+    if (!provider) {
+      console.warn("No provider available, using default ETH price");
+      return 2000; // Default price if no provider
+    }
+
     // Create contract instance
     const priceFeed = new ethers.Contract(
       ETH_USD_PRICE_FEED,
@@ -65,10 +70,21 @@ export const getEthPrice = async (provider) => {
 
     // Get the latest round data
     const roundData = await priceFeed.latestRoundData();
-    const decimals = await priceFeed.decimals();
     
-    // Convert the price to a human-readable format
-    const price = Number(roundData.answer) / (10 ** decimals);
+    // Check if we got valid data
+    if (!roundData || !roundData.answer) {
+      throw new Error("Invalid price data received from oracle");
+    }
+    
+    const decimals = await priceFeed.decimals();
+    const price = Number(roundData.answer) / (10 ** Number(decimals));
+    
+    // Validate the price is reasonable
+    if (price < 1 || price > 100000) {
+      console.warn("Suspicious ETH price received:", price);
+      return 2000; // Fallback price if price is out of expected range
+    }
+    
     return price;
   } catch (error) {
     console.error("Error fetching ETH price:", error);

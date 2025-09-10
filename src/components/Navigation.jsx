@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Sun, Moon, Plus, Home, Compass } from 'lucide-react';
+import { Menu, X, Sun, Moon, Plus, Home, Compass, LayoutDashboard } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import ConnectButton from './ConnectButton';
 
@@ -16,6 +16,7 @@ const Navigation = ({ account, onConnect }) => {
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Campaigns', path: '/campaigns', icon: Compass },
+    ...(account ? [{ name: 'Dashboard', path: '/my-campaigns', icon: LayoutDashboard }] : []),
   ];
 
   // Close mobile menu when route changes
@@ -85,6 +86,26 @@ const Navigation = ({ account, onConnect }) => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <Link
+                to="/my-campaigns"
+                className={`hidden md:flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive('/my-campaigns')
+                    ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                <span>My Dashboard</span>
+              </Link>
+              <Link
+                to="/my-campaigns"
+                className={`md:hidden p-2 rounded-full ${
+                  isActive('/my-campaigns') ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-gray-100 dark:bg-gray-700'
+                } text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors`}
+                title="Dashboard"
+              >
+                <LayoutDashboard className="h-5 w-5" />
+              </Link>
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
