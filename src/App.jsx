@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ethers } from "ethers";
 import {
   BrowserRouter as Router,
   Routes,
@@ -38,34 +39,48 @@ const App = () => {
 
   const connectWallet = async () => {
     try {
-      const provider = await makeProvider();
-      const signer = await makeSigner(provider);
-      const accounts = await provider.listAccounts();
-
+      // Request account access if needed
+      if (typeof window.ethereum === 'undefined') {
+        throw new Error('Please install MetaMask to use this dApp!');
+      }
+      
+      // Request accounts
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      
+      // Get provider and signer
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
       setProvider(provider);
       setSigner(signer);
       setAccount(accounts[0]);
 
       // Listen for account changes
-      if (provider.provider?.on) {
-        provider.provider.on("accountsChanged", (accounts) => {
-          setAccount(accounts[0] || "");
-          if (!accounts[0]) {
-            setSigner(undefined);
-            setProvider(undefined);
-          }
-        });
+      window.ethereum.on("accountsChanged", (accounts) => {
+        setAccount(accounts[0] || "");
+        if (!accounts[0]) {
+          setSigner(undefined);
+          setProvider(undefined);
+        } else {
+          // Update signer if account changes but stays connected
+          provider.getSigner().then(newSigner => {
+            setSigner(newSigner);
+          });
+        }
+      });
 
-        provider.provider.on("chainChanged", () => {
-          window.location.reload();
-        });
-      }
+      window.ethereum.on("chainChanged", () => {
+        window.location.reload();
+      });
 
       // Load campaigns
-      await loadCampaigns(provider);
+      if (loadCampaigns) {
+        await loadCampaigns(provider);
+      }
     } catch (err) {
       console.error("Failed to connect wallet:", err);
       setError("Failed to connect wallet. Please try again.");
+      throw err; // Re-throw to be handled by the caller
     }
   };
 
@@ -141,12 +156,11 @@ const App = () => {
             <Route
               path="/create-campaign"
               element={
-                // <ProtectedRoute account={account}>
-                  <CampaignForm
-                    signer={signer}
-                    account={account}
-                  />
-                // </ProtectedRoute>
+                <CampaignForm
+                  signer={signer}
+                  account={account}
+                  onConnect={connectWallet}
+                />
               }
             />
 
