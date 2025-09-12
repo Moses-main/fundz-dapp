@@ -149,7 +149,7 @@ const Navigation = ({ account, onConnect }) => {
                     </button>
                   </div>
                 </div>
-                <nav className="flex-1 px-4 py-2 space-y-1">
+                <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
                   {navItems.map((item) => (
                     <Link
                       key={item.name}
@@ -166,13 +166,29 @@ const Navigation = ({ account, onConnect }) => {
                   ))}
                   <Link
                     to="/create-campaign"
-                    className="flex items-center px-4 py-3 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                    className="flex items-center px-4 py-3 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 mb-4"
                   >
                     <Plus className="h-5 w-5 mr-3" />
                     Create Campaign
                   </Link>
+                  
+                  {account && (
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-2">
+                      <Link
+                        to="/my-campaigns"
+                        className={`flex items-center px-4 py-3 rounded-md text-base font-medium ${
+                          isActive('/my-campaigns')
+                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <LayoutDashboard className="h-5 w-5 mr-3" />
+                        My Dashboard
+                      </Link>
+                    </div>
+                  )}
                 </nav>
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">
                       Theme
@@ -188,6 +204,13 @@ const Navigation = ({ account, onConnect }) => {
                         <Sun className="h-5 w-5" />
                       )}
                     </button>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <ConnectButton 
+                      onConnect={onConnect} 
+                      account={account} 
+                      className="w-full justify-center"
+                    />
                   </div>
                 </div>
               </div>
