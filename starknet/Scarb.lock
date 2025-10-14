@@ -2,5 +2,5 @@
 version = 1
 
 [[package]]
-name = "fundloom_starknet"
+name = "hello_starknet"
 version = "0.1.0"

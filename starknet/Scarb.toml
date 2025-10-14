@@ -1,13 +1,11 @@
 [package]
-name = "fundloom_starknet"
+name = "hello_starknet"
 version = "0.1.0"
-
-# See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest
+edition = "2023_10"
 
 [dependencies]
-starknet = ">=2.3.0"
+starknet = ">=2.0.0"
 
 [[target.starknet-contract]]
-# Enable the Sierra code generation in the default profile
-disallowed-libfuncs = ["starknet"]
-allowed-libfuncs = ["starknet::starknet_libfunc"]
+# Disable libfunc validation for now
+starknet-validate = false
