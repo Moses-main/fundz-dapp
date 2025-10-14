@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { AnimatePresence } from "framer-motion";
 import { ThemeProvider as ThemeProviderContext } from "./context/ThemeContext";
 import { WalletProvider, useWallet } from "./context/WalletContext";
+import { StarknetProvider } from "./context/StarknetProvider";
 import Navigation from "./components/Navigation";
 import CampaignForm from "./components/CampaignForm";
 import CampaignDetails from "./components/CampaignDetails";
@@ -62,14 +63,18 @@ const AppContent = () => {
   );
 };
 
-const App = () => (
-  <Router>
-    <ThemeProviderContext>
-      <WalletProvider>
-        <AppContent />
-      </WalletProvider>
-    </ThemeProviderContext>
-  </Router>
-);
+const App = () => {
+  return (
+    <Router>
+      <ThemeProviderContext>
+        <WalletProvider>
+          <StarknetProvider>
+            <AppContent />
+          </StarknetProvider>
+        </WalletProvider>
+      </ThemeProviderContext>
+    </Router>
+  );
+};
 
 export default App;
