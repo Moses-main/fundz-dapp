@@ -32,16 +32,22 @@ import {
   getCampaign,
 } from "../../lib/campaignService";
 import { getEthPrice } from "../../utils/priceFeed";
-import { useWallet } from "../../context/WalletContext";
+import { useUnifiedWallet } from "../../context/UnifiedWalletContext";
 import { ethers } from "ethers";
+import WalletInfo from "../../components/dashboard/WalletInfo";
 
 const UserDashboard = () => {
-  const { account, provider, signer } = useWallet();
+  const { 
+    ethAccount: account, 
+    ethProvider: provider, 
+    ethSigner: signer,
+    isEthConnected,
+    isStarknetConnected
+  } = useUnifiedWallet();
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
   const [stats, setStats] = useState({
     totalRaised: 0,
     totalCampaigns: 0,
@@ -217,6 +223,12 @@ const UserDashboard = () => {
       clearInterval(dataInterval);
     };
   }, [account, provider, loadUserData]);
+
+  useEffect(() => {
+    if (!isEthConnected) {
+      navigate("/");
+    }
+  }, [isEthConnected, navigate]);
 
   // Chart data
   const campaignData = campaigns.map((campaign) => {

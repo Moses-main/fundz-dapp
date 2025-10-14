@@ -3,12 +3,14 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Sun, Moon, Plus, Home, Compass, LayoutDashboard } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import ConnectButton from './ConnectButton';
+import WalletButton from './WalletButton';
+import { useUnifiedWallet } from '../context/UnifiedWalletContext';
 
-const Navigation = ({ account, onConnect }) => {
+const Navigation = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { isEthConnected } = useUnifiedWallet();
   const isMobile = window.innerWidth < 768;
 
   const isActive = (path) => location.pathname === path;
@@ -16,7 +18,7 @@ const Navigation = ({ account, onConnect }) => {
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Campaigns', path: '/campaigns', icon: Compass },
-    ...(account ? [{ name: 'Dashboard', path: '/my-campaigns', icon: LayoutDashboard }] : []),
+    ...(isEthConnected ? [{ name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard }] : []),
   ];
 
   // Close mobile menu when route changes
@@ -76,48 +78,43 @@ const Navigation = ({ account, onConnect }) => {
                     {item.name}
                   </Link>
                 ))}
-                <Link
-                  to="/create-campaign"
-                  className="px-3 py-2 rounded-md text-sm font-medium flex items-center text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Campaign
-                </Link>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Link
-                to="/my-campaigns"
-                className={`hidden md:flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive('/my-campaigns')
-                    ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                <span>My Dashboard</span>
-              </Link>
-              <Link
-                to="/my-campaigns"
-                className={`md:hidden p-2 rounded-full ${
-                  isActive('/my-campaigns') ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-gray-100 dark:bg-gray-700'
-                } text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors`}
-                title="Dashboard"
-              >
-                <LayoutDashboard className="h-5 w-5" />
-              </Link>
+              {isEthConnected && (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className={`hidden md:flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
+                      isActive('/dashboard')
+                        ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Dashboard</span>
+                  </Link>
+                  <Link
+                    to="/create-campaign"
+                    className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Create Campaign</span>
+                  </Link>
+                </>
+              )}
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
+                aria-label="Toggle dark mode"
               >
-                {theme === 'light' ? (
-                  <Moon className="h-5 w-5" />
-                ) : (
+                {theme === 'dark' ? (
                   <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
                 )}
               </button>
-              <ConnectButton onConnect={onConnect} account={account} />
+              <WalletButton />
             </div>
           </div>
         </div>

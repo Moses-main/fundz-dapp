@@ -2,8 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { ThemeProvider as ThemeProviderContext } from "./context/ThemeContext";
-import { WalletProvider, useWallet } from "./context/WalletContext";
-import { StarknetProvider } from "./context/StarknetProvider";
+import { UnifiedWalletProvider, useUnifiedWallet } from "./context/UnifiedWalletContext";
 import Navigation from "./components/Navigation";
 import CampaignForm from "./components/CampaignForm";
 import CampaignDetails from "./components/CampaignDetails";
@@ -14,10 +13,10 @@ import UserDashboard from "./pages/dashboard/UserDashboard";
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
-  const { isConnected } = useWallet();
+  const { isEthConnected } = useUnifiedWallet();
   const location = useLocation();
 
-  if (!isConnected) {
+  if (!isEthConnected) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
@@ -31,31 +30,31 @@ const AppContent = () => {
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          
+          {/* Public routes */}
           <Route path="/campaigns" element={<CampaignsContainer />} />
           <Route path="/campaigns/:id" element={<CampaignDetails />} />
           
-          <Route
-            path="/create-campaign"
-            element={
-              <ProtectedRoute>
-                <CampaignForm />
-              </ProtectedRoute>
-            }
-          />
+          {/* Protected routes */}
+          <Route path="/create-campaign" element={
+            <ProtectedRoute>
+              <CampaignForm />
+            </ProtectedRoute>
+          } />
 
           {/* Dashboard Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }>
+            <Route index element={<UserDashboard />} />
+            <Route path="my-campaigns" element={<UserDashboard />} />
+            <Route path="my-donations" element={<UserDashboard />} />
+            <Route path="settings" element={<UserDashboard />} />
+          </Route>
           
-          <Route path="/my-campaigns" element={<UserDashboard />} />
-
-          {/* Redirect to home for unknown routes */}
+          {/* Fallback route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
@@ -67,11 +66,9 @@ const App = () => {
   return (
     <Router>
       <ThemeProviderContext>
-        <WalletProvider>
-          <StarknetProvider>
-            <AppContent />
-          </StarknetProvider>
-        </WalletProvider>
+        <UnifiedWalletProvider>
+          <AppContent />
+        </UnifiedWalletProvider>
       </ThemeProviderContext>
     </Router>
   );

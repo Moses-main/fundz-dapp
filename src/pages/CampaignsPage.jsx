@@ -7,7 +7,10 @@ import { ethers } from "ethers";
 import { getEthPrice } from "../utils/priceFeed";
 import Footer from "../components/landing/Footer";
 
-const CampaignsPage = ({ campaigns, onCampaignSelect, provider }) => {
+import { useUnifiedWallet } from "../context/UnifiedWalletContext";
+
+const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }) => {
+  const { ethProvider: provider, isEthConnected } = useUnifiedWallet();
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [ethPrice, setEthPrice] = useState(2000); // Default to $2000 if fetch fails
@@ -20,9 +23,8 @@ const CampaignsPage = ({ campaigns, onCampaignSelect, provider }) => {
     const fetchEthPrice = async () => {
       try {
         setIsLoadingPrice(true);
-        const providerToUse = provider || (window.ethereum ? new ethers.BrowserProvider(window.ethereum) : null);
-        if (providerToUse) {
-          const price = await getEthPrice(providerToUse);
+        if (provider) {
+          const price = await getEthPrice(provider);
           setEthPrice(price);
         }
       } catch (error) {
@@ -32,13 +34,13 @@ const CampaignsPage = ({ campaigns, onCampaignSelect, provider }) => {
       }
     };
 
-    fetchEthPrice();
-    
-    // Set up interval to refresh price every 5 minutes
-    const priceInterval = setInterval(fetchEthPrice, 5 * 60 * 1000);
-    
-    return () => clearInterval(priceInterval);
-  }, [provider]);
+    if (isEthConnected) {
+      fetchEthPrice();
+      // Set up interval to refresh price every 5 minutes
+      const priceInterval = setInterval(fetchEthPrice, 5 * 60 * 1000);
+      return () => clearInterval(priceInterval);
+    }
+  }, [provider, isEthConnected]);
 
   const formatAmount = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -57,29 +59,37 @@ const CampaignsPage = ({ campaigns, onCampaignSelect, provider }) => {
 
   const handleViewCampaign = (campaign) => {
     navigate(
-      `/campaigns/
-${campaign.id}
-`,
+      `/campaigns/${campaign.id}`,
       {
         state: { campaign },
       }
     );
   };
 
-  const filteredCampaigns = campaigns.filter((campaign) => {
-    const matchesSearch =
-      campaign.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      campaign.description.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredCampaigns = useMemo(() => {
+    if (!campaigns || campaigns.length === 0) return [];
 
-    if (filter === "trending") {
-      return matchesSearch && campaign.raised / campaign.goal >= 0.5;
-    } else if (filter === "ending-soon") {
-      return matchesSearch && campaign.daysLeft < 7;
-    } else if (filter === "new") {
-      return matchesSearch && campaign.isNew;
-    }
-    return matchesSearch;
-  });
+    return campaigns.filter((campaign) => {
+      const matchesSearch = campaign.title
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+
+      const now = new Date();
+      const endDate = new Date(campaign.deadline * 1000);
+      const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+
+      switch (filter) {
+        case 'trending':
+          return matchesSearch && (campaign.isTrending || campaign.totalDonors > 10);
+        case 'ending-soon':
+          return matchesSearch && daysLeft <= 7;
+        case 'new':
+          return matchesSearch && (campaign.isNew || daysLeft > 30);
+        default:
+          return matchesSearch;
+      }
+    });
+  }, [campaigns, searchQuery, filter]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {
@@ -89,6 +99,25 @@ ${campaign.id}
       maximumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  if (!isEthConnected) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <h2 className="text-2xl font-bold mb-4 text-center">Wallet Not Connected</h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-6 text-center">
+          Please connect your wallet to view campaigns.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen mt-10 bg-gray-50  dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
@@ -179,11 +208,12 @@ ${campaign.id}
             {filteredCampaigns.map((campaign) => (
               <motion.div
                 key={campaign.id}
-                className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col"
+                className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col cursor-pointer"
                 whileHover={{ y: -5 }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
+                onClick={() => handleViewCampaign(campaign)}
               >
                 <div className="relative w-full aspect-[4/3] overflow-hidden">
                   <img
@@ -303,15 +333,22 @@ ${campaign.id}
           </div>
         ) : (
           <div className="text-center py-12">
-            <Target className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">
-              No campaigns found
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">
+              {campaigns.length === 0 ? 'No campaigns have been created yet' : 'No campaigns match your search'}
             </h3>
-            <p className="mt-1 text-gray-500 dark:text-gray-400">
-              {searchQuery
-                ? "Try adjusting your search or filter to find what you're looking for."
-                : "There are currently no campaigns matching your criteria."}
+            <p className="mt-2 text-gray-500 dark:text-gray-400">
+              {campaigns.length === 0 
+                ? 'Be the first to create a campaign!' 
+                : 'Try adjusting your search or filter criteria'}
             </p>
+            {campaigns.length === 0 && (
+              <button
+                onClick={onRefresh}
+                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                Refresh
+              </button>
+            )}
           </div>
         )}
       </div>

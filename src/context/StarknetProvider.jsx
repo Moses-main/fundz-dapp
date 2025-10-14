@@ -22,13 +22,8 @@ export const StarknetProvider = ({ children }) => {
         });
         setProvider(provider);
         
-        // Check if wallet is already connected
-        const { connect } = await import('@argent/get-starknet');
-        const starknet = connect();
-        
-        if (starknet && starknet.isConnected) {
-          await handleConnectedStarknet(starknet);
-        }
+        // Don't automatically connect to wallet on page load
+        // User will need to explicitly click connect
       } catch (error) {
         console.error('Error initializing StarkNet provider:', error);
         setError('Failed to initialize StarkNet provider');
