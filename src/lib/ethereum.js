@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 
 export function makeProvider() {
   if (typeof window === "undefined" || !window.ethereum) return null;
-  return new ethers.BrowserProvider(window.ethereum);
+  return new ethers.providers.Web3Provider(window.ethereum);
 }
 
 export async function makeSigner() {
@@ -11,7 +11,7 @@ export async function makeSigner() {
   // request accounts if not already
   try {
     await provider.send("eth_requestAccounts", []);
-    return await provider.getSigner();
+    return provider.getSigner();
   } catch (e) {
     return null;
   }

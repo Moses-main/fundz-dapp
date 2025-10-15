@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
 
 const UnifiedWalletContext = createContext({});
@@ -15,15 +15,15 @@ export const UnifiedWalletProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   // Connect to Ethereum wallet
-  const connectWallet = useCallback(async () => {
-    if (!window.ethereum) {
-      console.warn('No Ethereum provider found. Please install MetaMask.');
-      setError('Please install MetaMask to connect your wallet');
-      return false;
-    }
-
+  const connectWallet = useCallback(async (walletType) => {
     try {
       setLoading(true);
+      setError(null);
+
+      if (!window.ethereum) {
+        throw new Error('No Ethereum provider found. Please install a wallet like MetaMask.');
+      }
+
       const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
       const accounts = await web3Provider.send("eth_requestAccounts", []);
       const signer = web3Provider.getSigner();
@@ -41,6 +41,8 @@ export const UnifiedWalletProvider = ({ children }) => {
         } else {
           // Account changed
           setAccount(accounts[0]);
+          const signer = web3Provider.getSigner();
+          setSigner(signer);
         }
       };
 
@@ -51,12 +53,12 @@ export const UnifiedWalletProvider = ({ children }) => {
 
       window.ethereum.on('accountsChanged', handleAccountsChanged);
       window.ethereum.on('chainChanged', handleChainChanged);
-      
+
       return true;
     } catch (error) {
-      console.error('Error connecting to wallet:', error);
+      console.error('Error connecting wallet:', error);
       setError(error.message || 'Failed to connect wallet');
-      return false;
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -64,35 +66,38 @@ export const UnifiedWalletProvider = ({ children }) => {
 
   // Disconnect wallet
   const disconnectWallet = useCallback(() => {
-    setAccount('');
-    setProvider(null);
-    setSigner(null);
-    setIsConnected(false);
-    
-    // Remove event listeners
+    // Clean up Ethereum listeners
     if (window.ethereum) {
       window.ethereum.removeAllListeners('accountsChanged');
       window.ethereum.removeAllListeners('chainChanged');
     }
+    
+    setAccount('');
+    setProvider(null);
+    setSigner(null);
+    setIsConnected(false);
+    setError(null);
   }, []);
 
   // Check if wallet is connected on page load
   useEffect(() => {
     const checkIfWalletIsConnected = async () => {
-      if (!window.ethereum) return;
-      
       try {
-        const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
-        const accounts = await web3Provider.listAccounts();
-        
-        if (accounts.length > 0) {
-          const signer = web3Provider.getSigner();
-          const address = await signer.getAddress();
+        // Check Ethereum wallet connection
+        if (window.ethereum) {
+          const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+          const accounts = await web3Provider.listAccounts();
           
-          setAccount(address);
-          setProvider(web3Provider);
-          setSigner(signer);
-          setIsConnected(true);
+          if (accounts.length > 0) {
+            const signer = web3Provider.getSigner();
+            const address = await signer.getAddress();
+            
+            setAccount(address);
+            setProvider(web3Provider);
+            setSigner(signer);
+            setIsConnected(true);
+            return;
+          }
         }
       } catch (error) {
         console.error('Error checking wallet connection:', error);
@@ -102,12 +107,13 @@ export const UnifiedWalletProvider = ({ children }) => {
     checkIfWalletIsConnected();
   }, []);
 
+
   // Check if wallet is connected
   const isAnyConnected = isConnected;
 
   // Get the connected account
   const getPrimaryAccount = useCallback(() => {
-    if (account) return { network: 'ethereum', address: account };
+    if (account) return { network: walletType, address: account };
     return null;
   }, [account]);
 
@@ -121,27 +127,19 @@ export const UnifiedWalletProvider = ({ children }) => {
     return provider;
   }, [provider]);
 
+  const value = useMemo(() => ({
+    account,
+    provider,
+    signer,
+    isConnected,
+    loading,
+    error,
+    connectWallet,
+    disconnectWallet,
+  }), [account, provider, signer, isConnected, loading, error, connectWallet, disconnectWallet]);
+
   return (
-    <UnifiedWalletContext.Provider
-      value={{
-        // Connection state
-        isConnected,
-        isAnyConnected,
-        loading,
-        error,
-        
-        // Wallet info
-        account,
-        provider,
-        signer,
-        
-        // Methods
-        connectWallet: connectWallet,
-        disconnectWallet: disconnectWallet,
-        getPrimaryAccount,
-        getSigner,
-        getProvider,
-      }}>
+    <UnifiedWalletContext.Provider value={value}>
       {children}
     </UnifiedWalletContext.Provider>
   );

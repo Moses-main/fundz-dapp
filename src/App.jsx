@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { 
   LogOut,
   ChevronLeft,
@@ -174,7 +174,6 @@ const App = () => {
         <AuthProvider>
           <UnifiedWalletProvider>
             <AppContent />
-            <Toaster position="top-right" />
           </UnifiedWalletProvider>
         </AuthProvider>
       </ThemeProviderContext>
