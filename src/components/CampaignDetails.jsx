@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Clock,
@@ -9,11 +9,13 @@ import {
   Users,
   Share2,
   Copy,
+  Check,
   Globe,
   Calendar,
   DollarSign,
   ArrowUpRight,
-  AlertCircle
+  AlertCircle,
+  Link as LinkIcon
 } from "lucide-react";
 import { getCampaign, getCampaigns } from "../lib/campaignService";
 import { toast } from "react-hot-toast";
@@ -45,6 +47,46 @@ const CampaignDetails = () => {
   const [isLoadingPrice, setIsLoadingPrice] = useState(true);
   const [contributionAmount, setContributionAmount] = useState('');
   const [isContributing, setIsContributing] = useState(false);
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+
+  // Copy campaign link to clipboard
+  const copyCampaignLink = () => {
+    const campaignUrl = `${window.location.origin}/campaigns/${id}`;
+    navigator.clipboard.writeText(campaignUrl);
+    setIsLinkCopied(true);
+    toast.success('Campaign link copied to clipboard!');
+    setShowShareOptions(false);
+    
+    // Reset the copied state after 3 seconds
+    setTimeout(() => {
+      setIsLinkCopied(false);
+    }, 3000);
+  };
+
+  // Share campaign via Web Share API if available
+  const handleShare = async () => {
+    const campaignUrl = `${window.location.origin}/campaigns/${id}`;
+    const shareData = {
+      title: `Support ${campaign?.title || 'this campaign'}`,
+      text: `Check out this campaign on FundLoom: ${campaign?.description?.substring(0, 100)}...`,
+      url: campaignUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        copyCampaignLink();
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Error sharing:', err);
+        // Fallback to copy if sharing fails
+        copyCampaignLink();
+      }
+    }
+  };
 
   // Format campaign data from blockchain
   const formatCampaignData = (campaignData, id) => ({
@@ -239,13 +281,97 @@ const CampaignDetails = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-start">
                 <h1 className="text-3xl font-bold mb-4">{campaign.title}</h1>
-                <button
-                  onClick={shareCampaign}
-                  className="p-2 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                  title="Share campaign"
-                >
-                  <Share2 className="h-5 w-5" />
-                </button>
+                <div className="relative">
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowShareOptions(!showShareOptions)}
+                      className="flex items-center space-x-1 px-3 py-2 rounded-lg bg-indigo-50 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors"
+                      aria-label="Share campaign"
+                      aria-expanded={showShareOptions}
+                      aria-haspopup="true"
+                    >
+                      <Share2 className="h-5 w-5" />
+                      <span className="text-sm font-medium">Share</span>
+                    </button>
+                    
+                    {/* Share options dropdown */}
+                    <AnimatePresence>
+                      {showShareOptions && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          transition={{ duration: 0.2 }}
+                          className="share-dropdown absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50 overflow-hidden"
+                          role="menu"
+                        >
+                          <div className="py-1">
+                            <button
+                              onClick={handleShare}
+                              className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              role="menuitem"
+                            >
+                              <Share2 className="mr-3 h-5 w-5 text-gray-400" />
+                              Share via...
+                            </button>
+                            <button
+                              onClick={copyCampaignLink}
+                              className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              role="menuitem"
+                            >
+                              {isLinkCopied ? (
+                                <Check className="mr-3 h-5 w-5 text-green-500" />
+                              ) : (
+                                <LinkIcon className="mr-3 h-5 w-5 text-gray-400" />
+                              )}
+                              {isLinkCopied ? 'Link Copied!' : 'Copy Link'}
+                            </button>
+                          </div>
+                          <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700">
+                            Share this campaign with others
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  
+                  {/* Share options dropdown */}
+                  <AnimatePresence>
+                    {showShareOptions && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50 overflow-hidden"
+                      >
+                        <div className="py-1">
+                          <button
+                            onClick={shareCampaign}
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            <Share2 className="mr-3 h-5 w-5 text-gray-400" />
+                            Share via...
+                          </button>
+                          <button
+                            onClick={copyCampaignLink}
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            {isLinkCopied ? (
+                              <Check className="mr-3 h-5 w-5 text-green-500" />
+                            ) : (
+                              <LinkIcon className="mr-3 h-5 w-5 text-gray-400" />
+                            )}
+                            {isLinkCopied ? 'Link Copied!' : 'Copy Link'}
+                          </button>
+                        </div>
+                        <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700">
+                          Share this campaign with others
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
               
               <p className="text-gray-600 dark:text-gray-300 mb-6">{campaign.description}</p>
