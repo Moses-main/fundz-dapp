@@ -6,7 +6,6 @@ import {
   DollarSign,
   CheckCircle,
   XCircle,
-  AlertCircle,
   TrendingUp,
   ExternalLink,
   ArrowUpRight,

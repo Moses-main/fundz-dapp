@@ -1,4 +1,11 @@
 import React from "react";
+import { 
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Coins,
+  ShieldAlert,
+} from 'lucide-react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { ThemeProvider as ThemeProviderContext } from "./context/ThemeContext";
@@ -14,10 +21,11 @@ import Overview from "./pages/dashboard/Overview";
 import MyCampaigns from "./pages/dashboard/MyCampaigns";
 import Contributions from "./pages/dashboard/Contributions";
 import Settings from "./pages/dashboard/Settings";
+import AdminDashboard from "./pages/dashboard/AdminDashboard";
 import { Toaster } from "react-hot-toast";
 
 // Protected route component that shows content but handles wallet connection prompts
-const ProtectedRoute = ({ children, requireWallet = false }) => {
+const ProtectedRoute = ({ children, requireWallet = false, requireAdmin = false }) => {
   const { isConnected } = useUnifiedWallet();
   
   // If wallet is required but not connected, show a message
@@ -34,6 +42,32 @@ const ProtectedRoute = ({ children, requireWallet = false }) => {
       </div>
     );
   }
+
+  // Check for admin access
+  const isAdmin = true; // In a real app, this would come from your auth context
+  if (requireAdmin && !isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
+        <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg max-w-md w-full text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+            <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            Access Denied
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            You don't have permission to access the admin dashboard.
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return children;
 };
@@ -43,7 +77,7 @@ const AppContent = () => {
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation />
       <AnimatePresence mode="wait">
-        <main className="container mx-auto px-4 py-8">
+        <main className="w-full">
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
@@ -71,8 +105,30 @@ const AppContent = () => {
             >
               <Route index element={<Overview />} />
               <Route path="campaigns" element={<MyCampaigns />} />
-              <Route path="contributions" element={<Contributions />} />
-              <Route path="settings" element={<Settings />} />
+              <Route 
+                path="contributions" 
+                element={
+                  <ProtectedRoute requireWallet={true}>
+                    <Contributions />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="admin" 
+                element={
+                  <ProtectedRoute requireWallet={true} requireAdmin={true}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="settings" 
+                element={
+                  <ProtectedRoute requireWallet={true}>
+                    <Settings />
+                  </ProtectedRoute>
+                } 
+              />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
             

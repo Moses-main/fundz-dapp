@@ -47,7 +47,7 @@ const LandingPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="w-full flex flex-col">
       <style>{`
         @keyframes float {
           0% { transform: translateY(0px); }
@@ -91,11 +91,19 @@ const LandingPage = () => {
       `}</style>
 
       <main className="flex-grow">
-        <Hero />
-        <Features />
-        <Testimonials />
+        <div className="w-full">
+          <Hero />
+        </div>
+        <div className="w-full bg-white dark:bg-gray-900">
+          <Features />
+        </div>
+        <div className="w-full bg-gray-50 dark:bg-gray-800">
+          <Testimonials />
+        </div>
+        <div className="w-full bg-gray-900">
+          <Footer />
+        </div>
       </main>
-      <Footer />
     </div>
   );
 };
