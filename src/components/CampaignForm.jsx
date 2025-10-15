@@ -62,9 +62,9 @@ export default function CampaignForm({ signer, account, onConnect }) {
       setError("");
 
       const contract = getContract(CONTRACT_ADDRESS, FUNDLOOM_ABI, signer);
-      const targetInWei = ethers.parseEther(ethAmount);
-      const durationInSeconds = BigInt(
-        Number(formData.duration) * 24 * 60 * 60
+      const targetInWei = ethers.utils.parseEther(ethAmount);
+      const durationInSeconds = ethers.BigNumber.from(
+        Math.floor(Number(formData.duration) * 24 * 60 * 60)
       ); // Convert days to seconds
       const charityAddress = formData.charity || account; // Use provided address or default to connected account
 

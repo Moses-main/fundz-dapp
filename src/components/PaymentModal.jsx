@@ -58,7 +58,7 @@ const PaymentModal = ({ isOpen, onClose, campaign, onSuccess }) => {
     try {
       const { fundLoom } = await initContracts(signer);
       const tx = await fundLoom.donate(campaign.id, {
-        value: ethers.parseEther(amount.toString())
+        value: ethers.utils.parseEther(amount.toString())
       });
       setTxHash(tx.hash);
       await tx.wait();
@@ -76,7 +76,7 @@ const PaymentModal = ({ isOpen, onClose, campaign, onSuccess }) => {
       const { fundLoom, usdc } = await initContracts(signer);
       
       // Convert amount to USDC decimals (6)
-      const usdcAmount = ethers.parseUnits(amount.toString(), 6);
+      const usdcAmount = ethers.utils.parseUnits(amount.toString(), 6);
       
       // Approve USDT spending
       const approveTx = await usdc.approve(CONTRACT_ADDRESS, usdcAmount);

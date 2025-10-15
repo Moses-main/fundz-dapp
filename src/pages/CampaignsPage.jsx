@@ -6,10 +6,14 @@ import { useNavigate } from "react-router-dom";
 import { ethers } from "ethers";
 import { getEthPrice } from "../utils/priceFeed";
 import Footer from "../components/landing/Footer";
-
+import { useMemo } from "react";
 import { useUnifiedWallet } from "../context/UnifiedWalletContext";
 
-const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }) => {
+const CampaignsPage = ({
+  campaigns = [],
+  loading = false,
+  onRefresh = () => {},
+}) => {
   const { ethProvider: provider, isEthConnected } = useUnifiedWallet();
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,27 +47,24 @@ const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }
   }, [provider, isEthConnected]);
 
   const formatAmount = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
   const formatEthAmount = (usdAmount) => {
     const ethAmount = usdAmount / ethPrice;
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 4,
-      maximumFractionDigits: 4
+      maximumFractionDigits: 4,
     }).format(ethAmount);
   };
 
   const handleViewCampaign = (campaign) => {
-    navigate(
-      `/campaigns/${campaign.id}`,
-      {
-        state: { campaign },
-      }
-    );
+    navigate(`/campaigns/${campaign.id}`, {
+      state: { campaign },
+    });
   };
 
   const filteredCampaigns = useMemo(() => {
@@ -79,11 +80,13 @@ const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }
       const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
 
       switch (filter) {
-        case 'trending':
-          return matchesSearch && (campaign.isTrending || campaign.totalDonors > 10);
-        case 'ending-soon':
+        case "trending":
+          return (
+            matchesSearch && (campaign.isTrending || campaign.totalDonors > 10)
+          );
+        case "ending-soon":
           return matchesSearch && daysLeft <= 7;
-        case 'new':
+        case "new":
           return matchesSearch && (campaign.isNew || daysLeft > 30);
         default:
           return matchesSearch;
@@ -112,14 +115,20 @@ const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }
   if (campaigns.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <h2 className="text-2xl font-bold mb-4 text-center">No Campaigns Found</h2>
+        <h2 className="text-2xl font-bold mb-4 text-center">
+          No Campaigns Found
+        </h2>
         <p className="text-gray-600 dark:text-gray-300 mb-6 text-center">
           There are no active campaigns at the moment.
-          {!isEthConnected && ' Connect your wallet to create a new campaign.'}
+          {!isEthConnected && " Connect your wallet to create a new campaign."}
         </p>
         {!isEthConnected && (
           <button
-            onClick={() => document.querySelector('button[data-testid="wallet-connect-button"]')?.click()}
+            onClick={() =>
+              document
+                .querySelector('button[data-testid="wallet-connect-button"]')
+                ?.click()
+            }
             className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
           >
             Connect Wallet to Create Campaign
@@ -283,7 +292,13 @@ const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }
                       </div>
                       <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
                         <Target className="w-3.5 h-3.5 mr-1 text-indigo-500" />
-                        <span>≈ {isLoadingPrice ? '...' : formatEthAmount(campaign.goal)} ETH</span>
+                        <span>
+                          ≈{" "}
+                          {isLoadingPrice
+                            ? "..."
+                            : formatEthAmount(campaign.goal)}{" "}
+                          ETH
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -302,20 +317,37 @@ const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }
                           Raised: {formatAmount(campaign.raised)} USDC
                         </span>
                         <span className="font-medium text-gray-900 dark:text-white">
-                          {Math.min(100, Math.round((campaign.raised / campaign.goal) * 100))}%
+                          {Math.min(
+                            100,
+                            Math.round((campaign.raised / campaign.goal) * 100)
+                          )}
+                          %
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-2">
                         <div
                           className="bg-gradient-to-r from-indigo-500 to-blue-500 h-2.5 rounded-full"
                           style={{
-                            width: `${Math.min(100, (campaign.raised / campaign.goal) * 100)}%`,
+                            width: `${Math.min(
+                              100,
+                              (campaign.raised / campaign.goal) * 100
+                            )}%`,
                           }}
                         ></div>
                       </div>
                       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                         <span>Goal: {formatAmount(campaign.goal)} USDC</span>
-                        <span>≈ {isLoadingPrice ? '...' : formatEthAmount(campaign.raised)} / {isLoadingPrice ? '...' : formatEthAmount(campaign.goal)} ETH</span>
+                        <span>
+                          ≈{" "}
+                          {isLoadingPrice
+                            ? "..."
+                            : formatEthAmount(campaign.raised)}{" "}
+                          /{" "}
+                          {isLoadingPrice
+                            ? "..."
+                            : formatEthAmount(campaign.goal)}{" "}
+                          ETH
+                        </span>
                       </div>
                     </div>
 
@@ -344,12 +376,14 @@ const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }
         ) : (
           <div className="text-center py-12">
             <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">
-              {campaigns.length === 0 ? 'No campaigns have been created yet' : 'No campaigns match your search'}
+              {campaigns.length === 0
+                ? "No campaigns have been created yet"
+                : "No campaigns match your search"}
             </h3>
             <p className="mt-2 text-gray-500 dark:text-gray-400">
-              {campaigns.length === 0 
-                ? 'Be the first to create a campaign!' 
-                : 'Try adjusting your search or filter criteria'}
+              {campaigns.length === 0
+                ? "Be the first to create a campaign!"
+                : "Try adjusting your search or filter criteria"}
             </p>
             {campaigns.length === 0 && (
               <button

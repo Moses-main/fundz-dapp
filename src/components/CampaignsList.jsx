@@ -15,73 +15,113 @@ const CampaignCard = ({ campaign, onSelect, isAdmin, signer, onStatusChange }) =
   );
   const daysLeft = Math.ceil((deadlineDate - new Date()) / (1000 * 60 * 60 * 24));
   const isEnded = deadlineDate <= new Date();
+  const raised = parseFloat(ethers.utils.formatEther(campaign.raisedAmount));
+  const goal = parseFloat(ethers.utils.formatEther(campaign.targetAmount));
 
   const handleCardClick = (e) => {
-    if (e.target.closest('.activation-button')) return;
+    if (e.target.closest('.activation-button') || e.target.closest('.view-details')) return;
     onSelect(campaign.id);
   };
 
   return (
     <div 
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer"
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-100 dark:border-gray-700"
       onClick={handleCardClick}
     >
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white truncate">
+      {/* Campaign image placeholder */}
+      <div className="h-40 bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center">
+        <span className="text-white font-bold text-lg">
+          {campaign.name?.charAt(0).toUpperCase() || 'C'}
+        </span>
+      </div>
+      
+      <div className="p-5">
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1">
             {campaign.name || `Campaign #${campaign.id}`}
           </h3>
-          <div className="activation-button">
-            <CampaignActivation 
-              campaignId={campaign.id} 
-              isActive={campaign.isActive} 
-              onStatusChange={onStatusChange}
-              signer={signer}
-              isAdmin={isAdmin}
+          {isAdmin && (
+            <div className="activation-button flex-shrink-0 ml-2">
+              <CampaignActivation 
+                campaignId={campaign.id} 
+                isActive={campaign.isActive} 
+                onStatusChange={onStatusChange}
+                signer={signer}
+                isAdmin={isAdmin}
+              />
+            </div>
+          )}
+        </div>
+
+        <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2 h-10">
+          {campaign.description || "No description provided"}
+        </p>
+
+        {/* Progress bar */}
+        <div className="mb-4">
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+            <span>Raised of {goal.toFixed(2)} ETH</span>
+            <span>{progress.toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700 overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500"
+              style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">
-          {campaign.description || "No description provided"}
-        </p>
-
-        <div className="mb-4">
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-            <span>Raised {ethers.formatEther(campaign.raisedAmount)} ETH</span>
-            <span>{progress.toFixed(1)}% of {ethers.formatEther(campaign.targetAmount)} ETH</span>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
+            <div className="text-gray-500 dark:text-gray-400 text-xs">Raised</div>
+            <div className="font-medium text-indigo-600 dark:text-indigo-400">
+              {raised.toFixed(2)} ETH
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-            <div 
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2.5 rounded-full progress-bar" 
-              style={{ width: `${progress}%` }}
-            ></div>
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
+            <div className="text-gray-500 dark:text-gray-400 text-xs">Goal</div>
+            <div className="font-medium">
+              {goal.toFixed(2)} ETH
+            </div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
+            <div className="text-gray-500 dark:text-gray-400 text-xs">Backers</div>
+            <div className="font-medium">{campaign.totalDonors || 0}</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
+            <div className="text-gray-500 dark:text-gray-400 text-xs">
+              {isEnded ? 'Ended' : 'Ends in'}
+            </div>
+            <div className="font-medium">
+              {isEnded ? 'Completed' : `${daysLeft} days`}
+            </div>
           </div>
         </div>
-
-        <div className="flex flex-wrap justify-between items-center text-sm">
-          <div className="flex items-center text-gray-600 dark:text-gray-400 mb-2 sm:mb-0">
-            <div className={`w-2 h-2 rounded-full mr-2 ${isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span>{isActive ? 'Active' : 'Ended'}</span>
-          </div>
-          
-          <div className="flex items-center text-gray-600 dark:text-gray-400">
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {isEnded ? (
-              <span>Ended {deadlineDate.toLocaleDateString()}</span>
-            ) : (
-              <span>{daysLeft} {daysLeft === 1 ? 'day' : 'days'} left</span>
-            )}
-          </div>
-          
-          <div className="flex items-center text-gray-600 dark:text-gray-400">
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span>{campaign.totalDonors || 0} {campaign.totalDonors === 1 ? 'donor' : 'donors'}</span>
-          </div>
+      </div>
+      
+      <div className={`px-5 py-3 border-t ${
+        isActive 
+          ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30' 
+          : 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700'
+      }`}>
+        <div className="flex items-center justify-between">
+          <span className={`inline-flex items-center text-sm font-medium ${
+            isActive ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
+          }`}>
+            <span className={`w-2 h-2 rounded-full mr-2 ${
+              isActive ? 'bg-green-500' : 'bg-gray-400'
+            }`}></span>
+            {isActive ? 'Active' : 'Ended'}
+          </span>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(campaign.id);
+            }}
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+          >
+            View Details →
+          </button>
         </div>
       </div>
     </div>
@@ -101,13 +141,17 @@ const CampaignsList = ({ provider, onSelectCampaign, account, signer, isAdmin = 
   const [sortBy, setSortBy] = useState('newest');
 
   const fetchCampaigns = useCallback(async () => {
-    const currentProvider = provider || new ethers.InfuraProvider('sepolia');
+    if (!provider) {
+      setError("No Ethereum provider available. Please connect your wallet.");
+      setLoading(false);
+      return [];
+    }
 
     try {
       setLoading(true);
       setError("");
 
-      const contract = getContract(CONTRACT_ADDRESS, FUNDLOOM_ABI, currentProvider);
+      const contract = getContract(CONTRACT_ADDRESS, FUNDLOOM_ABI, provider);
       const campaignIds = await contract.getAllCampaignIds();
       const campaignsList = [];
 
@@ -119,7 +163,6 @@ const CampaignsList = ({ provider, onSelectCampaign, account, signer, isAdmin = 
             name: data.name,
             description: data.description || "No description provided",
             creator: data.creator,
-            charity: data.charity,
             targetAmount: data.targetAmount.toString(),
             raisedAmount: data.raisedAmount.toString(),
             deadline: Number(data.deadline),
@@ -226,11 +269,36 @@ const CampaignsList = ({ provider, onSelectCampaign, account, signer, isAdmin = 
   };
 
   const handleStatusChange = async (campaignId, newStatus) => {
+    if (!signer) {
+      toast.error('Please connect your wallet to update campaign status');
+      return;
+    }
+
     try {
-      await fetchCampaigns();
-    } catch (err) {
-      console.error('Error refreshing campaigns:', err);
-      toast.error('Failed to update campaign status');
+      const contract = getContract(CONTRACT_ADDRESS, FUNDLOOM_ABI, signer);
+      let tx;
+      
+      if (newStatus) {
+        tx = await contract.activateCampaign(campaignId);
+      } else {
+        tx = await contract.deactivateCampaign(campaignId);
+      }
+      
+      await tx.wait();
+      
+      // Update local state
+      setCampaigns(prevCampaigns => 
+        prevCampaigns.map(campaign => 
+          campaign.id === campaignId 
+            ? { ...campaign, isActive: newStatus } 
+            : campaign
+        )
+      );
+      
+      toast.success(`Campaign ${newStatus ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      console.error('Error updating campaign status:', error);
+      toast.error(error.reason || error.message || 'Failed to update campaign status');
     }
   };
 
@@ -245,17 +313,20 @@ const CampaignsList = ({ provider, onSelectCampaign, account, signer, isAdmin = 
 
   if (error) {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-          </div>
+      <div className="text-center p-6">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+          <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
         </div>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Error Loading Campaigns</h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
+        <button
+          onClick={fetchCampaigns}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     );
   }

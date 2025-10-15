@@ -31,7 +31,7 @@ const getCampaign = async (id, provider) => {
     // Helper function to safely format ether values
     const formatEther = (value) => {
       try {
-        return ethers.formatEther(value.toString());
+        return ethers.utils.formatEther(value.toString());
       } catch (e) {
         console.error('Error formatting ether value:', e);
         return '0';
@@ -83,8 +83,8 @@ const getCampaignsByCreator = async (creatorAddress, provider) => {
             ...campaign,
             creator: campaign.creator,
             charity: campaign.charity,
-            targetAmount: parseFloat(ethers.formatEther(campaign.targetAmount)),
-            amountRaised: parseFloat(ethers.formatEther(campaign.amountRaised || 0)),
+            targetAmount: parseFloat(ethers.utils.formatEther(campaign.targetAmount)),
+            amountRaised: parseFloat(ethers.utils.formatEther(campaign.amountRaised || 0)),
             deadline: new Date(Number(campaign.deadline) * 1000),
             isActive: campaign.isActive,
             // Add other campaign fields as needed

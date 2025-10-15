@@ -18,11 +18,10 @@ import { Toaster } from "react-hot-toast";
 
 // Protected route component that shows content but handles wallet connection prompts
 const ProtectedRoute = ({ children, requireWallet = false }) => {
-  const { isEthConnected } = useUnifiedWallet();
+  const { isConnected } = useUnifiedWallet();
   
   // If wallet is required but not connected, show a message
-  // The actual connection will be handled by the ConnectButton component in the UI
-  if (requireWallet && !isEthConnected) {
+  if (requireWallet && !isConnected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
@@ -114,6 +113,7 @@ const App = () => {
       <ThemeProviderContext>
         <UnifiedWalletProvider>
           <AppContent />
+          <Toaster position="top-right" />
         </UnifiedWalletProvider>
       </ThemeProviderContext>
     </Router>
