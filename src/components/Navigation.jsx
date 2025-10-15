@@ -1,19 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Sun, Moon, Plus, Home, Compass, LayoutDashboard } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import WalletButton from './WalletButton';
+import ConnectButton from './ConnectButton';
 import { useUnifiedWallet } from '../context/UnifiedWalletContext';
 
 const Navigation = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { isEthConnected } = useUnifiedWallet();
+  const { 
+    isEthConnected, 
+    connectEth, 
+    disconnectEth, 
+    ethAccount,
+    ethProvider,
+    ethSigner 
+  } = useUnifiedWallet();
   const isMobile = window.innerWidth < 768;
 
   const isActive = (path) => location.pathname === path;
+
+  // Handle wallet connection
+  const handleConnect = useCallback(({ address, provider, signer }) => {
+    if (address && provider && signer) {
+      connectEth(address, provider, signer);
+    }
+  }, [connectEth]);
+
+  // Handle wallet disconnection
+  const handleDisconnect = useCallback(() => {
+    disconnectEth();
+    if (location.pathname.startsWith('/dashboard') || 
+        location.pathname.startsWith('/create-campaign')) {
+      navigate('/');
+    }
+  }, [disconnectEth, location.pathname, navigate]);
 
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
@@ -81,32 +105,18 @@ const Navigation = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              {isEthConnected && (
-                <>
-                  <Link
-                    to="/dashboard"
-                    className={`hidden md:flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
-                      isActive('/dashboard')
-                        ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <LayoutDashboard className="h-4 w-4" />
-                    <span>Dashboard</span>
-                  </Link>
-                  <Link
-                    to="/create-campaign"
-                    className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Create Campaign</span>
-                  </Link>
-                </>
-              )}
+              <div className="hidden md:block">
+                <ConnectButton 
+                  onConnect={handleConnect}
+                  onDisconnect={handleDisconnect}
+                  account={ethAccount}
+                  provider={ethProvider}
+                />
+              </div>
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
-                aria-label="Toggle dark mode"
+                className="p-2 rounded-full text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {theme === 'dark' ? (
                   <Sun className="h-5 w-5" />
@@ -114,7 +124,6 @@ const Navigation = () => {
                   <Moon className="h-5 w-5" />
                 )}
               </button>
-              <WalletButton />
             </div>
           </div>
         </div>
@@ -169,18 +178,18 @@ const Navigation = () => {
                     Create Campaign
                   </Link>
                   
-                  {account && (
+                  {ethAccount && (
                     <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-2">
                       <Link
-                        to="/my-campaigns"
+                        to="/dashboard"
                         className={`flex items-center px-4 py-3 rounded-md text-base font-medium ${
-                          isActive('/my-campaigns')
+                          isActive('/dashboard')
                             ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
                             : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                         }`}
                       >
                         <LayoutDashboard className="h-5 w-5 mr-3" />
-                        My Dashboard
+                        Dashboard
                       </Link>
                     </div>
                   )}
@@ -202,11 +211,12 @@ const Navigation = () => {
                       )}
                     </button>
                   </div>
-                  <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <div className="mt-4 px-4">
                     <ConnectButton 
-                      onConnect={onConnect} 
-                      account={account} 
-                      className="w-full justify-center"
+                      onConnect={handleConnect}
+                      onDisconnect={handleDisconnect}
+                      account={ethAccount}
+                      provider={ethProvider}
                     />
                   </div>
                 </div>

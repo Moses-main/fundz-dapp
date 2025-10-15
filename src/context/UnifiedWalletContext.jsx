@@ -13,7 +13,9 @@ export const UnifiedWalletProvider = ({ children }) => {
   
   // Starknet wallet state
   const [starknetAccount, setStarknetAccount] = useState(null);
-  const [starknetProvider, setStarknetProvider] = useState(null);
+  const [starknetProvider] = useState(
+    () => new Provider({ sequencer: { network: constants.NetworkName.SN_SEPOLIA } })
+  );
   const [starknetContract, setStarknetContract] = useState(null);
   const [isStarknetConnected, setIsStarknetConnected] = useState(false);
   
@@ -27,129 +29,122 @@ export const UnifiedWalletProvider = ({ children }) => {
     starknet: null
   });
 
-  // Initialize providers
+  // Initialize Ethereum provider - No automatic connection
   useEffect(() => {
-    // Initialize Ethereum provider if available
-    const initEthProvider = () => {
-      if (window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        setEthProvider(provider);
-        
-        // Listen for account changes if user connects from another tab
-        const handleAccountsChanged = (accounts) => {
-          if (isEthConnected && accounts.length === 0) {
-            // User disconnected from another tab
-            setEthAccount('');
-            setEthSigner(null);
-            setIsEthConnected(false);
-          }
-        };
+    if (!window.ethereum) {
+      console.warn('No Ethereum provider found. Please install MetaMask.');
+      return;
+    }
 
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-        
-        return () => {
-          if (window.ethereum) {
-            window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-          }
-        };
-      }
-    };
-
-    // Initialize Starknet provider
-    const initStarknetProvider = async () => {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    setEthProvider(provider);
+    
+    // Check if already connected
+    const checkConnection = async () => {
       try {
-        // Only initialize the provider, don't connect automatically
-        const provider = new Provider({
-          sequencer: {
-            network: constants.NetworkName.SN_SEPOLIA
-          }
-        });
-        setStarknetProvider(provider);
-        
-        // Check for existing Starknet connection in local storage
-        const isStarknetConnected = localStorage.getItem('starknetConnected') === 'true';
-        if (isStarknetConnected) {
-          const { connect } = await import('@argent/get-starknet');
-          const starknet = await connect({ showList: false });
-          
-          if (starknet?.isConnected) {
-            setStarknetAccount(starknet.account);
-            setIsStarknetConnected(true);
-            
-            // Initialize contract if needed
-            if (starknet.account) {
-              const contractAddress = process.env.REACT_APP_STARKNET_CONTRACT_ADDRESS;
-              if (contractAddress) {
-                try {
-                  const response = await fetch(process.env.REACT_APP_STARKNET_CONTRACT_ABI_URL);
-                  const abi = await response.json();
-                  const contract = new Contract(abi, contractAddress, starknet.account);
-                  setStarknetContract(contract);
-                } catch (err) {
-                  console.error('Error initializing StarkNet contract:', err);
-                }
-              }
-            }
-          } else {
-            // Clear the connection flag if it's not actually connected
-            localStorage.removeItem('starknetConnected');
-          }
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+          const signer = await provider.getSigner();
+          setEthAccount(accounts[0]);
+          setEthSigner(signer);
+          setIsEthConnected(true);
         }
       } catch (err) {
-        console.error('Error initializing StarkNet provider:', err);
-        setError(prev => ({ ...prev, starknet: 'Failed to initialize StarkNet provider' }));
+        console.error('Error checking Ethereum connection:', err);
       }
     };
-
-    // Initialize providers
-    initEthProvider();
-    initStarknetProvider();
     
-    // Set up event listeners for wallet changes
+    checkConnection();
+    
+    // Handle account changes
     const handleAccountsChanged = (accounts) => {
       if (accounts.length === 0) {
         // Disconnected
-        disconnectWallet('ethereum');
-      } else if (ethAccount !== accounts[0]) {
+        setEthAccount('');
+        setEthSigner(null);
+        setIsEthConnected(false);
+      } else {
         // Account changed
         setEthAccount(accounts[0]);
+        // Update signer for the new account
+        provider.getSigner().then(signer => {
+          setEthSigner(signer);
+        });
       }
     };
     
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', () => window.location.reload());
-    }
+    // Handle chain changes
+    const handleChainChanged = () => {
+      window.location.reload();
+    };
     
+    // Add event listeners
+    window.ethereum.on('accountsChanged', handleAccountsChanged);
+    window.ethereum.on('chainChanged', handleChainChanged);
+    
+    // Cleanup
     return () => {
       if (window.ethereum) {
         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum.removeListener('chainChanged', () => window.location.reload());
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
-  }, [ethAccount]);
+  }, [isEthConnected]);
 
+  // Initialize Starknet contract when account is connected
+  const initStarknetContract = useCallback(async (account) => {
+    if (!account) return;
+    
+    try {
+      const contractAddress = process.env.REACT_APP_STARKNET_CONTRACT_ADDRESS;
+      if (!contractAddress) {
+        console.warn('No StarkNet contract address provided');
+        return;
+      }
+      
+      const response = await fetch(process.env.REACT_APP_STARKNET_CONTRACT_ABI_URL);
+      if (!response.ok) {
+        throw new Error('Failed to fetch contract ABI');
+      }
+      
+      const abi = await response.json();
+      const contract = new Contract(abi, contractAddress, account);
+      setStarknetContract(contract);
+      
+    } catch (err) {
+      console.error('Error initializing StarkNet contract:', err);
+      setError(prev => ({ ...prev, starknet: 'Failed to initialize contract' }));
+    }
+  }, []);
+  
   // Connect to Ethereum wallet
   const connectEth = useCallback(async () => {
     if (!window.ethereum) {
       setError(prev => ({ ...prev, eth: 'Please install MetaMask to connect Ethereum wallet' }));
-      return null;
+      throw new Error('MetaMask not installed');
     }
 
     try {
       setLoading(prev => ({ ...prev, eth: true }));
       setError(prev => ({ ...prev, eth: null }));
       
+      // Request account access
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      if (accounts.length === 0) {
+        throw new Error('No accounts found');
+      }
+      
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      const address = await signer.getAddress();
       
-      setEthAccount(accounts[0]);
+      setEthAccount(address);
       setEthProvider(provider);
       setEthSigner(signer);
       setIsEthConnected(true);
       
-      return { provider, signer, account: accounts[0] };
+      return { address, provider, signer };
+      
     } catch (err) {
       console.error('Error connecting Ethereum wallet:', err);
       setError(prev => ({ ...prev, eth: err.message || 'Failed to connect Ethereum wallet' }));
@@ -158,7 +153,15 @@ export const UnifiedWalletProvider = ({ children }) => {
       setLoading(prev => ({ ...prev, eth: false }));
     }
   }, []);
-
+  
+  // Disconnect Ethereum wallet
+  const disconnectEth = useCallback(() => {
+    setEthAccount('');
+    setEthSigner(null);
+    setIsEthConnected(false);
+    setError(prev => ({ ...prev, eth: null }));
+  }, []);
+  
   // Connect to Starknet wallet
   const connectStarknet = useCallback(async () => {
     try {
@@ -166,9 +169,8 @@ export const UnifiedWalletProvider = ({ children }) => {
       setError(prev => ({ ...prev, starknet: null }));
       
       const { connect } = await import('@argent/get-starknet');
-      // Only show the modal when explicitly requested by user action
       const starknet = await connect({
-        modalMode: 'neverShow',
+        modalMode: 'neverAsk',
         dappName: 'FundLoom'
       });
       
@@ -176,66 +178,77 @@ export const UnifiedWalletProvider = ({ children }) => {
         throw new Error('No StarkNet wallet found. Please install Argent X or Braavos wallet.');
       }
       
-      // Only proceed with connection if user explicitly enables it
-      const isAuthorized = await starknet.enable();
-      if (!isAuthorized) {
-        throw new Error('User rejected the connection');
+      // Explicitly request connection
+      await starknet.enable();
+      
+      if (!starknet.isConnected) {
+        throw new Error('Failed to connect to StarkNet wallet');
       }
       
       setStarknetAccount(starknet.account);
       setIsStarknetConnected(true);
-      
-      // Save connection state
       localStorage.setItem('starknetConnected', 'true');
       
-      // Initialize contract if needed
-      if (starknet.account) {
-        const contractAddress = process.env.REACT_APP_STARKNET_CONTRACT_ADDRESS;
-        if (contractAddress) {
-          try {
-            const response = await fetch(process.env.REACT_APP_STARKNET_CONTRACT_ABI_URL);
-            const abi = await response.json();
-            const contract = new Contract(abi, contractAddress, starknet.account);
-            setStarknetContract(contract);
-          } catch (err) {
-            console.error('Error initializing contract:', err);
-            // Don't fail the whole connection if contract init fails
-          }
-        }
-      }
+      // Initialize contract
+      await initStarknetContract(starknet.account);
       
-      return starknet;
+      return { account: starknet.account, provider: starknet.provider };
+      
     } catch (err) {
       console.error('Error connecting StarkNet wallet:', err);
-      setError(prev => ({ ...prev, starknet: err.message || 'Failed to connect StarkNet wallet' }));
+      setError(prev => ({ 
+        ...prev, 
+        starknet: err.message || 'Failed to connect StarkNet wallet' 
+      }));
       throw err;
     } finally {
       setLoading(prev => ({ ...prev, starknet: false }));
     }
+  }, [initStarknetContract]);
+  
+  // Disconnect Starknet wallet
+  const disconnectStarknet = useCallback(() => {
+    setStarknetAccount(null);
+    setIsStarknetConnected(false);
+    setStarknetContract(null);
+    localStorage.removeItem('starknetConnected');
+    setError(prev => ({ ...prev, starknet: null }));
   }, []);
-
-  // Disconnect wallet
-  const disconnectWallet = useCallback((walletType) => {
-    if (walletType === 'ethereum') {
-      setEthAccount('');
-      setEthProvider(null);
-      setEthSigner(null);
-      setIsEthConnected(false);
-    } else if (walletType === 'starknet') {
-      setStarknetAccount(null);
-      setStarknetContract(null);
-      setIsStarknetConnected(false);
-    }
-  }, []);
+  
+  // Check for existing Starknet connection on mount
+  useEffect(() => {
+    const checkStarknetConnection = async () => {
+      const isStarknetConnected = localStorage.getItem('starknetConnected') === 'true';
+      if (!isStarknetConnected) return;
+      
+      try {
+        const { connect } = await import('@argent/get-starknet');
+        const starknet = await connect({ showList: false });
+        
+        if (starknet?.isConnected) {
+          setStarknetAccount(starknet.account);
+          setIsStarknetConnected(true);
+          await initStarknetContract(starknet.account);
+        } else {
+          localStorage.removeItem('starknetConnected');
+        }
+      } catch (err) {
+        console.error('Error checking StarkNet connection:', err);
+        localStorage.removeItem('starknetConnected');
+      }
+    };
+    
+    checkStarknetConnection();
+  }, [initStarknetContract]);
 
   // Handle Ethereum account changes
   const handleEthAccountsChanged = useCallback((accounts) => {
     if (accounts.length === 0) {
-      disconnectWallet('ethereum');
+      disconnectEth();
     } else if (accounts[0] !== ethAccount) {
       setEthAccount(accounts[0]);
     }
-  }, [disconnectWallet, ethAccount]);
+  }, [disconnectEth, ethAccount]);
 
   // Handle Starknet account changes
   const handleStarknetAccountsChanged = useCallback(async () => {
@@ -293,6 +306,7 @@ export const UnifiedWalletProvider = ({ children }) => {
         ethSigner,
         isEthConnected,
         connectEth,
+        disconnectEth,
         
         // Starknet
         starknetAccount,
@@ -300,11 +314,15 @@ export const UnifiedWalletProvider = ({ children }) => {
         starknetContract,
         isStarknetConnected,
         connectStarknet,
+        disconnectStarknet,
         
-        // Common
-        disconnectWallet,
+        // General
         loading,
-        error
+        error,
+        disconnectAll: () => {
+          disconnectEth();
+          disconnectStarknet();
+        }
       }}
     >
       {children}
@@ -314,7 +332,7 @@ export const UnifiedWalletProvider = ({ children }) => {
 
 export const useUnifiedWallet = () => {
   const context = useContext(UnifiedWalletContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useUnifiedWallet must be used within a UnifiedWalletProvider');
   }
   return context;

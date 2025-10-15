@@ -1,56 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
-import DashboardLayout from '../components/dashboard/DashboardLayout';
-import Overview from './dashboard/Overview';
-import MyCampaigns from './dashboard/MyCampaigns';
-import Contributions from './dashboard/Contributions';
-import Settings from './dashboard/Settings';
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import DashboardSidebar from './dashboard/DashboardSidebar';
+import WalletInfo from '../components/dashboard/WalletInfo';
 
-const Dashboard = ({ account, signer }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const location = useLocation();
-  const { pathname } = location;
-
-  // Close sidebar when route changes
-  useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [pathname]);
-
-  // Common props to pass to all dashboard pages
-  const commonProps = {
-    account,
-    signer
-  };
-
+const Dashboard = () => {
   return (
-    <DashboardLayout 
-      isSidebarOpen={isSidebarOpen} 
-      toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-      currentPath={pathname}
-    >
-      <Routes>
-        <Route 
-          path="/" 
-          element={<Overview {...commonProps} />} 
-        />
-        <Route 
-          path="campaigns" 
-          element={<MyCampaigns {...commonProps} />} 
-        />
-        <Route 
-          path="contributions" 
-          element={<Contributions {...commonProps} />} 
-        />
-        <Route 
-          path="settings" 
-          element={<Settings {...commonProps} />} 
-        />
-        <Route 
-          path="*" 
-          element={<Navigate to="/dashboard" replace />} 
-        />
-      </Routes>
-    </DashboardLayout>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Sidebar */}
+      <DashboardSidebar />
+      
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Navigation */}
+        <header className="bg-white dark:bg-gray-800 shadow-sm z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+            <div className="flex items-center space-x-4">
+              <WalletInfo />
+            </div>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto p-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
   );
 };
 
