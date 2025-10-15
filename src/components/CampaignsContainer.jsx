@@ -40,50 +40,82 @@ const CampaignsContainer = () => {
     isNew: true,
   });
 
-  // Load campaigns from the blockchain
+  // Load campaigns from the blockchain or use demo data
   const loadCampaigns = useCallback(async () => {
-    if (!isEthConnected || !ethSigner) {
-      setLoading(false);
-      // Don't return here, let the UI handle the unconnected state
-      setCampaigns([]);
-      return;
-    }
+    setLoading(true);
+    
+    // Always load demo data first for immediate display
+    const demoCampaigns = [
+      {
+        id: '1',
+        name: 'Save the Rainforest',
+        description: 'Help us protect 1000 acres of Amazon rainforest. Your support will help preserve biodiversity and combat climate change.',
+        raisedAmount: ethers.parseEther('5'),
+        targetAmount: ethers.parseEther('10'),
+        deadline: Math.floor(Date.now() / 1000) + (15 * 24 * 60 * 60), // 15 days from now
+        creator: '0x123...456',
+        isActive: true,
+        totalDonors: 42,
+        isFundsTransferred: false,
+        image: '/charity-1.jpg',
+        category: 'Environment'
+      },
+      {
+        id: '2',
+        name: 'Education for All',
+        description: 'Providing school supplies to underprivileged children in rural areas. Help us give the gift of education.',
+        raisedAmount: ethers.parseEther('3'),
+        targetAmount: ethers.parseEther('5'),
+        deadline: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days from now
+        creator: '0x789...012',
+        isActive: true,
+        totalDonors: 28,
+        isFundsTransferred: false,
+        image: '/charity-2.jpg',
+        category: 'Education'
+      }
+    ];
 
     try {
-      setLoading(true);
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, FUNDLOOM_ABI, ethSigner);
-      
-      // Fetch campaign count
-      const count = await contract.campaignCount();
-      const campaignCount = parseInt(count.toString());
-      
-      // Fetch each campaign
-      const campaignPromises = [];
-      for (let i = 1; i <= campaignCount; i++) {
-        campaignPromises.push(contract.campaigns(i));
+      // Try to load from blockchain if connected
+      if (ethProvider) {
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, FUNDLOOM_ABI, ethProvider);
+        const count = await contract.campaignCount();
+        const campaignCount = parseInt(count.toString());
+        
+        if (campaignCount > 0) {
+          const campaignsData = [];
+          for (let i = 1; i <= campaignCount; i++) {
+            try {
+              const campaign = await contract.campaigns(i);
+              campaignsData.push(campaign);
+            } catch (error) {
+              console.error(`Error fetching campaign ${i}:`, error);
+            }
+          }
+          setCampaigns(campaignsData.map(formatCampaign));
+          return;
+        }
       }
       
-      const campaignsData = await Promise.all(campaignPromises);
-      setCampaigns(campaignsData.map(formatCampaign));
+      // Fall back to demo data if no blockchain data or not connected
+      setCampaigns(demoCampaigns.map(formatCampaign));
     } catch (error) {
-      console.error("Error loading campaigns:", error);
+      console.error("Error loading campaigns from blockchain:", error);
+      // Use demo data if there's an error
+      setCampaigns(demoCampaigns.map(formatCampaign));
     } finally {
       setLoading(false);
     }
   }, [isEthConnected, ethSigner]);
 
+  // Load campaigns on component mount and when wallet connects/disconnects
   useEffect(() => {
     loadCampaigns();
     
-    // Listen for account changes
+    // Listen for account changes to refresh campaigns
     const handleAccountsChanged = (accounts) => {
-      if (accounts.length === 0) {
-        // Disconnected
-        setCampaigns([]);
-      } else {
-        // Account changed, reload campaigns
-        loadCampaigns();
-      }
+      loadCampaigns();
     };
 
     if (window.ethereum) {
@@ -97,13 +129,6 @@ const CampaignsContainer = () => {
     };
   }, [loadCampaigns]);
 
-  // Load campaigns when wallet connects
-  useEffect(() => {
-    if (isEthConnected && ethSigner) {
-      loadCampaigns();
-    }
-  }, [isEthConnected, ethSigner, loadCampaigns]);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -112,29 +137,23 @@ const CampaignsContainer = () => {
     );
   }
 
-  if (!isEthConnected) {
+  if (campaigns.length === 0 && !loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-          Browse Campaigns
+          No Campaigns Found
         </h2>
         <p className="text-gray-600 dark:text-gray-300 mb-6 text-center">
-          Connect your wallet to create a campaign or support existing ones.
+          There are no active campaigns at the moment. Be the first to create one!
         </p>
-        <div className="flex gap-4">
-          <button
-            onClick={() => navigate('/')}
-            className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-          >
-            Back to Home
-          </button>
+        {!isEthConnected && (
           <button
             onClick={() => document.querySelector('button[data-testid="wallet-connect-button"]')?.click()}
             className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
           >
-            Connect Wallet
+            Connect Wallet to Create Campaign
           </button>
-        </div>
+        )}
       </div>
     );
   }

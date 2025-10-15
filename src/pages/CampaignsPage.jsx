@@ -108,13 +108,23 @@ const CampaignsPage = ({ campaigns = [], loading = false, onRefresh = () => {} }
     );
   }
 
-  if (!isEthConnected) {
+  // Show campaigns even if wallet is not connected
+  if (campaigns.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <h2 className="text-2xl font-bold mb-4 text-center">Wallet Not Connected</h2>
+        <h2 className="text-2xl font-bold mb-4 text-center">No Campaigns Found</h2>
         <p className="text-gray-600 dark:text-gray-300 mb-6 text-center">
-          Please connect your wallet to view campaigns.
+          There are no active campaigns at the moment.
+          {!isEthConnected && ' Connect your wallet to create a new campaign.'}
         </p>
+        {!isEthConnected && (
+          <button
+            onClick={() => document.querySelector('button[data-testid="wallet-connect-button"]')?.click()}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            Connect Wallet to Create Campaign
+          </button>
+        )}
       </div>
     );
   }
