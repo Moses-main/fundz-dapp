@@ -10,10 +10,12 @@ import {
   Home,
   Compass,
   LayoutDashboard,
+  Shield,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import ConnectButton from "./ConnectButton";
 import { useUnifiedWallet } from "../context/UnifiedWalletContext";
+import { useAuth } from "../context/AuthContext";
 
 const Navigation = () => {
   const location = useLocation();
@@ -21,6 +23,7 @@ const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { isConnected, account } = useUnifiedWallet();
+  const { isAdmin } = useAuth();
   const isMobile = window.innerWidth < 768;
 
   const isActive = (path) => location.pathname === path;
@@ -29,7 +32,10 @@ const Navigation = () => {
     { name: "Home", path: "/", icon: Home },
     { name: "Campaigns", path: "/campaigns", icon: Compass },
     ...(isConnected
-      ? [{ name: "Dashboard", path: "/dashboard", icon: LayoutDashboard }]
+      ? [
+          { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+          ...(isAdmin ? [{ name: "Admin", path: "/admin", icon: Shield }] : []),
+        ]
       : []),
   ];
 

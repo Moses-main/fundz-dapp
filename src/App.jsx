@@ -10,6 +10,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { AnimatePresence } from "framer-motion";
 import { ThemeProvider as ThemeProviderContext } from "./context/ThemeContext";
 import { UnifiedWalletProvider, useUnifiedWallet } from "./context/UnifiedWalletContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navigation from "./components/Navigation";
 import ConnectButton from "./components/ConnectButton";
 import CampaignForm from "./components/CampaignForm";
@@ -44,7 +45,7 @@ const ProtectedRoute = ({ children, requireWallet = false, requireAdmin = false 
   }
 
   // Check for admin access
-  const isAdmin = true; // In a real app, this would come from your auth context
+  const { isAdmin } = useAuth();
   if (requireAdmin && !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
@@ -73,6 +74,7 @@ const ProtectedRoute = ({ children, requireWallet = false, requireAdmin = false 
 };
 
 const AppContent = () => {
+  const { isAdmin } = useAuth();
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation />
@@ -114,14 +116,6 @@ const AppContent = () => {
                 } 
               />
               <Route 
-                path="admin" 
-                element={
-                  <ProtectedRoute requireWallet={true} requireAdmin={true}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
                 path="settings" 
                 element={
                   <ProtectedRoute requireWallet={true}>
@@ -131,6 +125,16 @@ const AppContent = () => {
               />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
+
+            {/* Admin Dashboard - Separate from main dashboard layout */}
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute requireWallet={true} requireAdmin={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -167,10 +171,12 @@ const App = () => {
   return (
     <Router>
       <ThemeProviderContext>
-        <UnifiedWalletProvider>
-          <AppContent />
-          <Toaster position="top-right" />
-        </UnifiedWalletProvider>
+        <AuthProvider>
+          <UnifiedWalletProvider>
+            <AppContent />
+            <Toaster position="top-right" />
+          </UnifiedWalletProvider>
+        </AuthProvider>
       </ThemeProviderContext>
     </Router>
   );
