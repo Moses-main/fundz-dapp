@@ -22,7 +22,7 @@ const Hero = () => {
         <div className="text-center">
           <div className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 mb-6">
             <span className="flex h-2 w-2 mr-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            Live on Base Network
+            Live on Ethereum & Startknet Sepolia
           </div>
 
           <motion.h1
