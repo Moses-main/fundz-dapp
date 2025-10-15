@@ -1,14 +1,16 @@
+use starknet::ContractAddress;
+
 // Define the contract interface
 #[starknet::interface]
 pub trait IFundLoom<TContractState> {
     // Admin functions
-    fn set_allowed_token(ref self: TContractState, token: starknet::ContractAddress, allowed: bool);
+    fn set_allowed_token(ref self: TContractState, token: ContractAddress, allowed: bool);
 
     // Campaigns
     fn create_campaign(
         ref self: TContractState,
-        name: starknet::ByteArray,
-        charity: starknet::ContractAddress,
+        name: ByteArray,
+        charity: ContractAddress,
         target_amount: u256,
         duration_in_seconds: u64
     ) -> u256;
@@ -17,27 +19,27 @@ pub trait IFundLoom<TContractState> {
 
     // Donations
     fn donate_native_token(ref self: TContractState, campaign_id: u256, amount: u256);
-    fn donate_erc20(ref self: TContractState, campaign_id: u256, token: starknet::ContractAddress, amount: u256);
+    fn donate_erc20(ref self: TContractState, campaign_id: u256, token: ContractAddress, amount: u256);
 
     // Withdrawals
     fn withdraw_native_token(ref self: TContractState, campaign_id: u256);
-    fn withdraw_erc20(ref self: TContractState, campaign_id: u256, token: starknet::ContractAddress);
-    fn transfer_native_funds(ref self: TContractState, campaign_id: u256, to: starknet::ContractAddress);
+    fn withdraw_erc20(ref self: TContractState, campaign_id: u256, token: ContractAddress);
+    fn transfer_native_funds(ref self: TContractState, campaign_id: u256, to: ContractAddress);
     fn transfer_erc20_funds(
         ref self: TContractState,
         campaign_id: u256,
-        token: starknet::ContractAddress,
-        to: starknet::ContractAddress
+        token: ContractAddress,
+        to: ContractAddress
     );
 
     // Views
     fn get_campaign(self: @TContractState, id: u256) -> FundLoom::Campaign;
-    fn get_campaign_balance(self: @TContractState, id: u256, token: starknet::ContractAddress) -> u256;
-    fn get_all_campaign_ids(self: @TContractState) -> starknet::Array<u256>;
+    fn get_campaign_balance(self: @TContractState, id: u256, token: ContractAddress) -> u256;
+    fn get_all_campaign_ids(self: @TContractState) -> Array<u256>;
     fn get_campaign_id_counter(self: @TContractState) -> u256;
-    fn get_is_allowed_token(self: @TContractState, token: starknet::ContractAddress) -> bool;
-    fn get_token_raised(self: @TContractState, campaign_id: u256, token: starknet::ContractAddress) -> u256;
-    fn get_donor_total_native_token(self: @TContractState, donor: starknet::ContractAddress) -> u256;
+    fn get_is_allowed_token(self: @TContractState, token: ContractAddress) -> bool;
+    fn get_token_raised(self: @TContractState, campaign_id: u256, token: ContractAddress) -> u256;
+    fn get_donor_total_native_token(self: @TContractState, donor: ContractAddress) -> u256;
 }
 
 /// @title FundLoom (Starknet-ready, Extended)
@@ -47,16 +49,19 @@ pub trait IFundLoom<TContractState> {
 #[starknet::contract]
 pub mod FundLoom {
     // --- Standard library imports ---
-    use super::IRegistry; // Import the interface
+    // use super::IRegistry; // Import the interface
     use starknet::{
-        ContractAddress, get_caller_address, get_contract_address, get_block_timestamp, ByteArray,
-        ArrayTrait, array
+        ContractAddress, get_caller_address, get_contract_address, get_block_timestamp,
     };
-    use starknet::storage::*; // Always add all storage imports
+    use starknet::storage::{ // For persistent storage.
+        Map, MutableVecTrait, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
+        VecTrait, Vec,
+    };
+    use core::num::traits::Zero; // For zero checks on u256
 
     // --- OpenZeppelin component imports ---
-    use openzeppelin_access::ownable::OwnableComponent;
-    use openzeppelin_interfaces::erc20::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::access::ownable::OwnableComponent;
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
     // --- Component declarations ---
     // Ownable component for access control (only owner can perform certain actions)
@@ -65,7 +70,7 @@ pub mod FundLoom {
     // --- Data structures ---
 
     /// @dev Represents a crowdfunding campaign.
-    #[derive(Drop, starknet::Store, starknet::Event, Copy)]
+    #[derive(Drop, Clone, Serde, starknet::Store)]
     pub struct Campaign {
         pub id: u256, // incremental id
         pub name: ByteArray, // campaign name/title
@@ -142,12 +147,14 @@ pub mod FundLoom {
     pub struct CampaignActivated {
         #[key]
         pub id: u256,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
     pub struct CampaignDeactivated {
         #[key]
         pub id: u256,
+        pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -247,7 +254,7 @@ pub mod FundLoom {
             // Assert that only the contract owner can call this function
             self.ownable.assert_only_owner();
             // Require token address is not zero
-            assert(token != ContractAddress::from_felt252(0), 'BAD_TOKEN');
+            assert(token != Zero::zero(), 'BAD_TOKEN');
             // Update the whitelist status for the token
             self.is_allowed_token.write(token, allowed);
             // Emit an event indicating the whitelist update
@@ -274,7 +281,7 @@ pub mod FundLoom {
 
             // Input validation
             assert(name.len() > 0, 'NO_NAME');
-            assert(charity != ContractAddress::from_felt252(0), 'BAD_CHARITY');
+            assert(charity != Zero::zero(), 'BAD_CHARITY');
             assert(duration_in_seconds > 0, 'BAD_DURATION');
 
             // Increment campaign ID counter
@@ -285,7 +292,7 @@ pub mod FundLoom {
             // Create new campaign struct
             let new_campaign = Campaign {
                 id: current_id,
-                name,
+                name: name.clone(),
                 creator: caller,
                 charity,
                 target_amount,
@@ -299,7 +306,7 @@ pub mod FundLoom {
 
             // Store the new campaign
             self.campaigns.write(current_id, new_campaign);
-            self.campaign_ids.append(current_id); // Add ID to the list of all campaign IDs
+            self.campaign_ids.push(current_id); // Add ID to the list of all campaign IDs
 
             // Emit CampaignCreated event
             self.emit(
@@ -321,7 +328,8 @@ pub mod FundLoom {
 
             campaign.is_active = false;
             self.campaigns.write(id, campaign);
-            self.emit(Event::CampaignDeactivated(CampaignDeactivated { id }));
+            let timestamp = get_block_timestamp();
+            self.emit(Event::CampaignDeactivated(CampaignDeactivated { id, timestamp }));
         }
 
         /// @notice Activates a campaign, allowing donations again. Only the contract owner can call this.
@@ -334,7 +342,8 @@ pub mod FundLoom {
 
             campaign.is_active = true;
             self.campaigns.write(id, campaign);
-            self.emit(Event::CampaignActivated(CampaignActivated { id }));
+            let timestamp = get_block_timestamp();
+            self.emit(Event::CampaignActivated(CampaignActivated { id, timestamp }));
         }
 
         // --- Donations (Native Token) ---
@@ -419,10 +428,11 @@ pub mod FundLoom {
             let caller = get_caller_address();
             let current_timestamp = get_block_timestamp();
             let mut campaign = self.campaigns.read(campaign_id);
+            let campaign_creator = campaign.creator;
 
             // Validation checks
             assert(campaign.id != 0, 'NO_CAMPAIGN');
-            assert(campaign.creator == caller, 'NOT_CREATOR');
+            assert(campaign_creator == caller, 'NOT_CREATOR');
             assert(current_timestamp > campaign.deadline, 'CAMPAIGN_NOT_ENDED');
             assert(campaign.raised_amount > 0, 'NO_FUNDS');
             assert(!campaign.is_funds_transferred, 'FUNDS_ALREADY_TRANSFERRED');
@@ -438,10 +448,10 @@ pub mod FundLoom {
             let native_token_dispatcher = IERC20Dispatcher {
                 contract_address: self.native_token_address.read()
             };
-            native_token_dispatcher.transfer(campaign.creator, amount_to_withdraw);
+            native_token_dispatcher.transfer(campaign_creator, amount_to_withdraw);
 
             // Emit WithdrawnNativeToken event
-            self.emit(Event::WithdrawnNativeToken(WithdrawnNativeToken { campaign_id, to: campaign.creator, amount: amount_to_withdraw }));
+            self.emit(Event::WithdrawnNativeToken(WithdrawnNativeToken { campaign_id, to: campaign_creator, amount: amount_to_withdraw }));
         }
 
         /// @notice Allows the campaign creator to withdraw all collected ERC20 tokens of a specific type after the campaign deadline.
@@ -452,10 +462,11 @@ pub mod FundLoom {
             let caller = get_caller_address();
             let current_timestamp = get_block_timestamp();
             let mut campaign = self.campaigns.read(campaign_id);
+            let campaign_creator = campaign.creator;
 
             // Validation checks
             assert(campaign.id != 0, 'NO_CAMPAIGN');
-            assert(campaign.creator == caller, 'NOT_CREATOR');
+            assert(campaign_creator == caller, 'NOT_CREATOR');
             assert(current_timestamp > campaign.deadline, 'CAMPAIGN_NOT_ENDED');
             assert(self.is_allowed_token.read(token), 'TOKEN_NOT_ALLOWED');
 
@@ -470,10 +481,10 @@ pub mod FundLoom {
 
             // Transfer ERC20 tokens to the creator
             let erc20_dispatcher = IERC20Dispatcher { contract_address: token };
-            erc20_dispatcher.transfer(campaign.creator, amount_to_withdraw);
+            erc20_dispatcher.transfer(campaign_creator, amount_to_withdraw);
 
             // Emit WithdrawnERC20 event
-            self.emit(Event::WithdrawnERC20(WithdrawnERC20 { campaign_id, token, to: campaign.creator, amount: amount_to_withdraw }));
+            self.emit(Event::WithdrawnERC20(WithdrawnERC20 { campaign_id, token, to: campaign_creator, amount: amount_to_withdraw }));
         }
 
         /// @dev Transfers native tokens to an arbitrary address after the campaign ends.
@@ -489,7 +500,7 @@ pub mod FundLoom {
             assert(campaign.creator == caller, 'NOT_CREATOR');
             assert(current_timestamp > campaign.deadline, 'CAMPAIGN_NOT_ENDED');
             assert(campaign.raised_amount > 0, 'NO_FUNDS');
-            assert(to != ContractAddress::from_felt252(0), 'INVALID_RECIPIENT');
+            assert(to != Zero::zero(), 'INVALID_RECIPIENT');
             assert(!campaign.is_funds_transferred, 'FUNDS_ALREADY_TRANSFERRED');
 
             let amount_to_transfer = campaign.raised_amount;
@@ -528,7 +539,7 @@ pub mod FundLoom {
             assert(campaign.creator == caller, 'NOT_CREATOR');
             assert(current_timestamp > campaign.deadline, 'CAMPAIGN_NOT_ENDED');
             assert(self.is_allowed_token.read(token), 'TOKEN_NOT_ALLOWED');
-            assert(to != ContractAddress::from_felt252(0), 'INVALID_RECIPIENT');
+            assert(to != Zero::zero(), 'INVALID_RECIPIENT');
 
             let amount_to_transfer = self.token_raised.read((campaign_id, token));
             assert(amount_to_transfer > 0, 'NO_TOKEN_BALANCE');
@@ -566,7 +577,7 @@ pub mod FundLoom {
         fn get_campaign_balance(self: @ContractState, id: u256, token: ContractAddress) -> u256 {
             let campaign = self.campaigns.read(id);
             assert(campaign.id != 0, 'NO_CAMPAIGN');
-            if token == ContractAddress::from_felt252(0) {
+            if token == Zero::zero() {
                 // Return native token balance
                 campaign.raised_amount
             } else {
@@ -580,15 +591,10 @@ pub mod FundLoom {
         fn get_all_campaign_ids(self: @ContractState) -> Array<u256> {
             let mut all_ids = array![];
             // Iterate over the Vec and append each ID to the result Array
-            let campaign_ids_vec = self.campaign_ids.read();
-            let mut i = 0;
-            loop {
-                if i == campaign_ids_vec.len() {
-                    break;
-                }
-                all_ids.append(campaign_ids_vec.at(i).read());
-                i += 1;
-            };
+            for i in 0..self.campaign_ids.len() {
+                let val = self.campaign_ids[i].read();
+                all_ids.append(val);
+            }
             all_ids
         }
 
