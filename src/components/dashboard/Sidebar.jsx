@@ -8,7 +8,8 @@ import {
   Menu, 
   X,
   Home,
-  PlusCircle
+  PlusCircle,
+  Shield
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -17,10 +18,21 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const isAdmin = true; // In a real app, this would come from your auth context
+  
   const navItems = [
     { name: 'Overview', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
     { name: 'My Campaigns', path: '/dashboard/campaigns', icon: <FolderKanban size={20} /> },
     { name: 'Contributions', path: '/dashboard/contributions', icon: <HandCoins size={20} /> },
+    // Admin only items
+    ...(isAdmin ? [
+      { 
+        name: 'Admin Dashboard', 
+        path: '/dashboard/admin', 
+        icon: <Shield size={20} />,
+        adminOnly: true
+      },
+    ] : []),
     { name: 'Settings', path: '/dashboard/settings', icon: <Settings size={20} /> },
   ];
 

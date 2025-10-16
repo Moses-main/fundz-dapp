@@ -2,7 +2,7 @@
 version = 1
 
 [[package]]
-name = "hello_starknet"
+name = "fundloom"
 version = "0.1.0"
 dependencies = [
  "openzeppelin",

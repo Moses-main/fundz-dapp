@@ -6,6 +6,7 @@ import { ethers } from "ethers";
 import CampaignsPage from "../pages/CampaignsPage";
 import { CONTRACT_ADDRESS } from "../lib/contracts";
 import { FUNDLOOM_ABI } from "../lib/contracts";
+import { toast } from "react-hot-toast";
 
 const CampaignsContainer = () => {
   const [campaigns, setCampaigns] = useState([]);
@@ -20,112 +21,142 @@ const CampaignsContainer = () => {
 
   // Utility to convert on-chain data to frontend-friendly format
   const formatCampaign = (c) => ({
-    id: c.id.toString(),
-    title: c.name,
-    description: `Target: ${c.targetAmount.toString()} Wei`, // placeholder
-    raised: parseInt(c.raisedAmount.toString()), // convert BigNumber
-    goal: parseInt(c.targetAmount.toString()),
-    daysLeft: Math.max(
-      0,
-      Math.ceil((parseInt(c.deadline.toString()) - Date.now() / 1000) / 86400)
-    ),
-    creator: c.creator,
-    isActive: c.isActive,
-    totalDonors: parseInt(c.totalDonors.toString()),
-    isFundsTransferred: c.isFundsTransferred,
-    // optional placeholders
-    image: null,
-    category: "General",
-    backers: parseInt(c.totalDonors.toString()),
-    isNew: true,
+    id: c.id?.toString() || '0',
+    title: c.name || 'Untitled Campaign',
+    description: c.description || 'No description provided',
+    raised: c.raisedAmount ? parseFloat(ethers.utils.formatEther(c.raisedAmount.toString())) : 0,
+    goal: c.targetAmount ? parseFloat(ethers.utils.formatEther(c.targetAmount.toString())) : 0,
+    daysLeft: c.deadline 
+      ? Math.max(0, Math.ceil((parseInt(c.deadline.toString()) - Math.floor(Date.now() / 1000)) / 86400))
+      : 30,
+    creator: c.creator || '0x000...000',
+    isActive: c.isActive !== undefined ? c.isActive : true,
+    totalDonors: c.totalDonors ? parseInt(c.totalDonors.toString()) : 0,
+    isFundsTransferred: c.isFundsTransferred || false,
+    image: c.image || null,
+    category: c.category || 'General',
+    backers: c.totalDonors ? parseInt(c.totalDonors.toString()) : 0,
+    isNew: c.startTime ? (Date.now() / 1000 - c.startTime) < 604800 : false
   });
 
   // Load campaigns from the blockchain or use demo data
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
     
-    // Always load demo data first for immediate display
+    // Demo data to show when not connected to a wallet
     const demoCampaigns = [
       {
         id: '1',
-        name: 'Save the Rainforest',
-        description: 'Help us protect 1000 acres of Amazon rainforest. Your support will help preserve biodiversity and combat climate change.',
-        raisedAmount: ethers.parseEther('5'),
-        targetAmount: ethers.parseEther('10'),
-        deadline: Math.floor(Date.now() / 1000) + (15 * 24 * 60 * 60), // 15 days from now
-        creator: '0x123...456',
+        title: 'Save the Rainforest',
+        description: 'Help us protect 1000 acres of Amazon rainforest from deforestation',
+        raised: 2500,
+        goal: 10000,
+        daysLeft: 15,
+        creator: '0x123...abc',
         isActive: true,
         totalDonors: 42,
         isFundsTransferred: false,
-        image: '/charity-1.jpg',
-        category: 'Environment'
+        image: null,
+        category: 'Environment',
+        backers: 42,
+        isNew: true
       },
       {
         id: '2',
-        name: 'Education for All',
-        description: 'Providing school supplies to underprivileged children in rural areas. Help us give the gift of education.',
-        raisedAmount: ethers.parseEther('3'),
-        targetAmount: ethers.parseEther('5'),
-        deadline: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days from now
-        creator: '0x789...012',
+        title: 'Clean Water Initiative',
+        description: 'Providing clean water to 1000 families in need',
+        raised: 15000,
+        goal: 50000,
+        daysLeft: 30,
+        creator: '0x456...def',
         isActive: true,
-        totalDonors: 28,
+        totalDonors: 128,
         isFundsTransferred: false,
-        image: '/charity-2.jpg',
-        category: 'Education'
+        image: null,
+        category: 'Humanitarian',
+        backers: 128,
+        isNew: false
       }
     ];
 
     try {
-      // Try to load from blockchain if connected
-      if (ethProvider) {
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, FUNDLOOM_ABI, ethProvider);
-        const count = await contract.campaignCount();
-        const campaignCount = parseInt(count.toString());
-        
-        if (campaignCount > 0) {
-          const campaignsData = [];
-          for (let i = 1; i <= campaignCount; i++) {
-            try {
-              const campaign = await contract.campaigns(i);
-              campaignsData.push(campaign);
-            } catch (error) {
-              console.error(`Error fetching campaign ${i}:`, error);
-            }
-          }
-          setCampaigns(campaignsData.map(formatCampaign));
-          return;
-        }
+      if (!isEthConnected || !ethProvider || !ethSigner) {
+        setCampaigns(demoCampaigns);
+        setLoading(false);
+        return;
       }
+
+      // Load real data when wallet is connected
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, FUNDLOOM_ABI, ethSigner);
+      const campaignCount = await contract.getCampaignsCount();
+      const campaignPromises = [];
+
+      for (let i = 0; i < campaignCount; i++) {
+        campaignPromises.push(contract.getCampaign(i));
+      }
+
+      const campaignsData = await Promise.all(campaignPromises);
       
-      // Fall back to demo data if no blockchain data or not connected
-      setCampaigns(demoCampaigns.map(formatCampaign));
+      const formattedCampaigns = campaignsData.map((campaign, index) => ({
+        id: index.toString(),
+        title: campaign.name || `Campaign #${index + 1}`,
+        description: campaign.description || 'No description provided',
+        raised: parseFloat(ethers.utils.formatEther(campaign.raisedAmount?.toString() || '0')),
+        goal: parseFloat(ethers.utils.formatEther(campaign.targetAmount?.toString() || '0')),
+        daysLeft: Math.max(0, Math.ceil((parseInt(campaign.deadline?.toString() || '0') - Math.floor(Date.now() / 1000)) / 86400)),
+        creator: campaign.creator || '0x000...000',
+        isActive: campaign.isActive !== undefined ? campaign.isActive : true,
+        totalDonors: parseInt(campaign.totalDonors?.toString() || '0'),
+        isFundsTransferred: campaign.isFundsTransferred || false,
+        image: null,
+        category: campaign.category || 'General',
+        backers: parseInt(campaign.totalDonors?.toString() || '0'),
+        isNew: (Date.now() / 1000 - (campaign.startTime?.toNumber() || 0)) < 604800
+      }));
+
+      setCampaigns(formattedCampaigns);
     } catch (error) {
-      console.error("Error loading campaigns from blockchain:", error);
-      // Use demo data if there's an error
-      setCampaigns(demoCampaigns.map(formatCampaign));
+      console.error('Error loading campaigns:', error);
+      toast.error('Failed to load campaigns. Please try again.');
+      // Fall back to demo data if there's an error
+      setCampaigns(demoCampaigns);
     } finally {
       setLoading(false);
     }
-  }, [isEthConnected, ethSigner]);
+  }, [isEthConnected, ethProvider, ethSigner, ethAccount]);
 
-  // Load campaigns on component mount and when wallet connects/disconnects
+  // Load campaigns on component mount and when wallet connection changes
   useEffect(() => {
     loadCampaigns();
+  }, [loadCampaigns, isEthConnected, ethAccount]);
+
+  // Listen for campaign created/updated events
+  useEffect(() => {
+    if (!ethProvider || !isEthConnected) return;
+
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, FUNDLOOM_ABI, ethProvider);
     
-    // Listen for account changes to refresh campaigns
-    const handleAccountsChanged = (accounts) => {
+    const handleCampaignCreated = () => {
+      toast.success('New campaign created!');
       loadCampaigns();
     };
 
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-    }
+    const handleCampaignDonated = () => {
+      loadCampaigns();
+    };
+
+    contract.on('CampaignCreated', handleCampaignCreated);
+    contract.on('DonationMade', handleCampaignDonated);
+    contract.on('CampaignActivated', loadCampaigns);
+    contract.on('CampaignDeactivated', loadCampaigns);
+    contract.on('FundsWithdrawn', loadCampaigns);
 
     return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-      }
+      contract.off('CampaignCreated', handleCampaignCreated);
+      contract.off('DonationMade', handleCampaignDonated);
+      contract.off('CampaignActivated', loadCampaigns);
+      contract.off('CampaignDeactivated', loadCampaigns);
+      contract.off('FundsWithdrawn', loadCampaigns);
     };
   }, [loadCampaigns]);
 
