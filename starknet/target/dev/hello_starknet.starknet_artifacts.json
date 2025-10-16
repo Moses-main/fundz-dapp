@@ -1,1 +1,0 @@
-{"version":1,"contracts":[{"id":"abb38vj4v71se","package_name":"hello_starknet","contract_name":"FundLoom","module_path":"hello_starknet::FundLoom","artifacts":{"sierra":"hello_starknet_FundLoom.contract_class.json","casm":"hello_starknet_FundLoom.compiled_contract_class.json"}}]}
