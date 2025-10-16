@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getContract } from "../lib/ethereum";
-import { CONTRACT_ADDRESS, FUNDLOOM_ABI, USDC_ADDRESS, USDC_ABI } from "../lib/contracts";
-import { ethers } from "ethers";
+// import { getContract } from "../lib/ethereum";
+import { CONTRACT_ADDRESS, FUNDLOOM_ABI, USDC_ADDRESS, USDC_ABI, FUNDZ_DAPP_STARKNET_ADDRESS, FUNDLOOM__STARKNET_ABI } from "../lib/contracts";
+// import { ethers } from "ethers";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { publicProvider, useAccount, useConnect, useContract, useSendTransaction, useTransactionReceipt } from "@starknet-react/core";
+import { ethers, parseEther } from "ethers";
+import { CallData, Contract } from "starknet";
 
 // Approximate conversion rate (you might want to fetch this from an API in production)
 const USDC_TO_ETH_RATE = 0.0005; // 1 USDC = 0.0005 ETH
 
-export default function CampaignForm({ signer, account, onConnect }) {
+export default function CampaignForm({ }) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
@@ -29,18 +32,25 @@ export default function CampaignForm({ signer, account, onConnect }) {
     }));
   };
 
+  const { connectAsync, connectors } = useConnect();
+
+  const { address: starknetAddress, account: userAccount } = useAccount();
+
   // Update ETH amount when USDC amount changes
   useEffect(() => {
     const usdcAmount = parseFloat(formData.targetUSDC) || 0;
     const ethValue = (usdcAmount * USDC_TO_ETH_RATE).toFixed(6);
     setEthAmount(ethValue);
+
   }, [formData.targetUSDC]);
 
-  const handleConnectWallet = async () => {
+  const handleConnectWallet = async (connector) => {
     try {
       setIsConnecting(true);
       setError("");
-      await onConnect();
+      // await onConnect();
+      await connectAsync({ connector });
+
     } catch (err) {
       console.error("Error connecting wallet:", err);
       setError("Failed to connect wallet. Please try again.");
@@ -49,33 +59,77 @@ export default function CampaignForm({ signer, account, onConnect }) {
     }
   };
 
+  // const { contract } = useContract({
+  //   address: FUNDZ_DAPP_STARKNET_ADDRESS,
+  //   abi: resolvedAbi,
+  // })
+  const provider = publicProvider();
+  const contract = new Contract(FUNDLOOM__STARKNET_ABI, FUNDZ_DAPP_STARKNET_ADDRESS, publicProvider());
+  console.log(contract)
+
+  const calls = useMemo(() => {
+    if (!contract) return;
+
+    const formValid = formData.name.length > 0 && formData.charity.length > 0 && parseFloat(formData.targetUSDC) > 0 && formData.duration > 0 && parseEther(ethAmount) > 0;
+
+    if (!formValid) return;
+    // const targetInWei = ethers.parseEther(ethAmount);
+    const targetInWei = ethers.parseEther(ethAmount)
+    const durationInSeconds = BigInt(
+        Number(formData.duration) * 24 * 60 * 60
+      ); // Convert days to seconds
+      const charityAddress = formData.charity || userAccount.address; // Use provided address or default to connected account
+
+    return new CallData(FUNDLOOM__STARKNET_ABI).compile("create_campaign", [formData.name, starknetAddress, targetInWei, durationInSeconds])
+  }, [formData, ethAmount])
+
+  // const { sendAsync } = useSendTransaction({
+  //   calls
+  // })
+
+  // const { status } = useTransactionReceipt({
+  //   hash: t
+  // })
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!signer || !account) {
-      setError("Please connect your wallet to create a campaign");
-      return;
-    }
+    // if (!signer || !account) {
+    //   setError("Please connect your wallet to create a campaign");
+    //   return;
+    // }
 
     try {
       setIsSubmitting(true);
       setError("");
 
-      const contract = getContract(CONTRACT_ADDRESS, FUNDLOOM_ABI, signer);
-      const targetInWei = ethers.utils.parseEther(ethAmount);
-      const durationInSeconds = ethers.BigNumber.from(
-        Math.floor(Number(formData.duration) * 24 * 60 * 60)
-      ); // Convert days to seconds
-      const charityAddress = formData.charity || account; // Use provided address or default to connected account
+      // const contract = getContract(CONTRACT_ADDRESS, FUNDLOOM_ABI, signer);
+      // const targetInWei = ethers.parseEther(ethAmount);
+      // const durationInSeconds = BigInt(
+      //   Number(formData.duration) * 24 * 60 * 60
+      // ); // Convert days to seconds
+      // const charityAddress = formData.charity || account; // Use provided address or default to connected account
 
-      const tx = await contract.createCampaign(
-        formData.name,
-        charityAddress,
-        targetInWei,
-        durationInSeconds
-      );
+      // const tx = await contract.createCampaign(
+      //   formData.name,
+      //   charityAddress,
+      //   targetInWei,
+      //   durationInSeconds
+      // );
 
-      await tx.wait();
+      // const { transaction_hash } = await sendAsync();
+
+      const { transaction_hash } = await userAccount.execute([
+        {
+          contractAddress: FUNDZ_DAPP_STARKNET_ADDRESS,
+          calldata: calls,
+          entrypoint: "create_campaign"
+        }
+      ])
+
+      console.log(transaction_hash);
+
+      // await tx.wait();
 
       // Redirect to campaigns page after successful creation
       navigate("/campaigns", {
@@ -140,7 +194,7 @@ export default function CampaignForm({ signer, account, onConnect }) {
               />
             </div>
 
-            {account ? (
+            {userAccount ? (
               <div>
                 <label
                   htmlFor="charity"
@@ -160,7 +214,7 @@ export default function CampaignForm({ signer, account, onConnect }) {
                 {!formData.charity && (
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     Will use your connected address:{" "}
-                    <span className="font-mono text-xs">{account}</span>
+                    <span className="font-mono text-xs">{userAccount.address}</span>
                   </p>
                 )}
               </div>
@@ -226,10 +280,10 @@ export default function CampaignForm({ signer, account, onConnect }) {
             </div>
 
             <div className="pt-4 space-y-3">
-              {!account ? (
+              {!userAccount && !starknetAddress ? connectors.map((connector) => (
                 <button
                   type="button"
-                  onClick={handleConnectWallet}
+                  onClick={() => handleConnectWallet(connector)}
                   disabled={isConnecting}
                   className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
@@ -242,7 +296,7 @@ export default function CampaignForm({ signer, account, onConnect }) {
                     'Connect Wallet to Create Campaign'
                   )}
                 </button>
-              ) : (
+              ) )  : (
                 <button
                   type="submit"
                   disabled={isSubmitting}

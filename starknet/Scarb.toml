@@ -12,7 +12,7 @@ snforge_std = "0.41.0"
 assert_macros = "2.12.2"
 
 # [[target.starknet-contract]]
-# casm = true
+casm = true
 # # Enable the Sierra code generation in the default profile
 # disallowed-libfuncs = ["starknet"]
 # allowed-libfuncs = ["starknet::starknet_libfunc"]

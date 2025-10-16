@@ -139,7 +139,29 @@ export const UnifiedWalletProvider = ({ children }) => {
   }), [account, provider, signer, isConnected, loading, error, connectWallet, disconnectWallet]);
 
   return (
-    <UnifiedWalletContext.Provider value={value}>
+    <UnifiedWalletContext.Provider
+      value={{
+        // Ethereum
+        ethAccount,
+        ethProvider,
+        ethSigner,
+        isEthConnected,
+        connectEth,
+        
+        // Starknet
+        starknetAccount,
+        starknetProvider,
+        starknetContract,
+        isStarknetConnected,
+        setIsStarknetConnected,
+        connectStarknet,
+        
+        // Common
+        disconnectWallet,
+        loading,
+        error
+      }}
+    >
       {children}
     </UnifiedWalletContext.Provider>
   );

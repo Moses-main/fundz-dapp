@@ -24,10 +24,11 @@ import Contributions from "./pages/dashboard/Contributions";
 import Settings from "./pages/dashboard/Settings";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
 import { Toaster } from "react-hot-toast";
+import StarknetProvider from "./context/StarknetProvider";
 
 // Protected route component that shows content but handles wallet connection prompts
 const ProtectedRoute = ({ children, requireWallet = false, requireAdmin = false }) => {
-  const { isConnected } = useUnifiedWallet();
+  const { isConnected, isStarknetConnected } = useUnifiedWallet();
   
   // If wallet is required but not connected, show a message
   if (requireWallet && !isConnected) {
@@ -44,32 +45,10 @@ const ProtectedRoute = ({ children, requireWallet = false, requireAdmin = false 
     );
   }
 
-  // Check for admin access
-  const { isAdmin } = useAuth();
-  if (requireAdmin && !isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-        <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg max-w-md w-full text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
-            <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-            Access Denied
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
-            You don't have permission to access the admin dashboard.
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Back to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
+  // if (!isEthConnected || !isStarknetConnected) {
+  //   return <Navigate to="/" state={{ from: location }} replace />;
+  // }
+
   return children;
 };
 
@@ -171,11 +150,11 @@ const App = () => {
   return (
     <Router>
       <ThemeProviderContext>
-        <AuthProvider>
-          <UnifiedWalletProvider>
-            <AppContent />
-          </UnifiedWalletProvider>
-        </AuthProvider>
+        {/* <UnifiedWalletProvider> */}
+        <StarknetProvider>
+          <AppContent />
+        </StarknetProvider>
+        {/* </UnifiedWalletProvider> */}
       </ThemeProviderContext>
     </Router>
   );
