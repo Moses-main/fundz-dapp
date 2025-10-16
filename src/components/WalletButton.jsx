@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUnifiedWallet } from '../context/UnifiedWalletContext';
 import { Wallet, Zap, ChevronDown } from 'lucide-react';
+import { useAccount, useConnect } from '@starknet-react/core';
+import { button, div } from 'framer-motion/client';
 
 const WalletButton = () => {
   const {
@@ -10,7 +12,8 @@ const WalletButton = () => {
     isStarknetConnected,
     connectEth,
     connectStarknet,
-    disconnectWallet
+    disconnectWallet,
+    setIsStarknetConnected,
   } = useUnifiedWallet();
 
   const formatAddress = (address) => {
@@ -18,17 +21,25 @@ const WalletButton = () => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const { address: starknetAddress, isConnected: starknetIsConnected } = useAccount();
+  console.log(starknetAddress)
+  const { connect, connectors } = useConnect();
+  const [starknetDropdownOpen, setStarknetDropdownOpen] = useState(false);
+
   const handleConnect = async (walletType) => {
     try {
       if (walletType === 'ethereum') {
         await connectEth();
       } else if (walletType === 'starknet') {
-        await connectStarknet();
+        // await connectStarknet();
+        setStarknetDropdownOpen(true);
       }
     } catch (error) {
       console.error(`Error connecting ${walletType} wallet:`, error);
     }
   };
+
+  console.log(connectors)
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -45,7 +56,7 @@ const WalletButton = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  if (!isEthConnected && !isStarknetConnected) {
+  if (!isEthConnected && !starknetIsConnected) {
     return (
       <div className="relative" ref={dropdownRef}>
         <button 
@@ -71,13 +82,63 @@ const WalletButton = () => {
             <button
               onClick={() => {
                 handleConnect('starknet');
-                setIsDropdownOpen(false);
+                // setIsDropdownOpen(false);
+                setStarknetDropdownOpen(!starknetDropdownOpen);
               }}
               className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <Zap className="h-4 w-4 mr-2 text-purple-500" />
               <span>Connect Starknet</span>
             </button>
+            <div>
+          {starknetDropdownOpen && (
+            <div className='text-white'>
+                {connectors
+                // .filter((connector) => connector.id === "argentX" || connector.id === "braavos")
+                .map((connector) => {
+                  
+                  console.log(connector.id)
+
+                  return (
+                  <button
+                      key={connector.id}
+                      onClick={() => {
+                          console.log("Trying to connect")
+                          connect({ connector });
+                          // setDropdownOpen(false);
+                          setIsStarknetConnected(true);
+                          setIsDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-[#ffffff]/10 rounded-lg flex items-center gap-2"
+                  >
+                      {connector.id === 'braavos' ? (
+                          <>
+                              <img
+                                  // src={"/images/Braavos logo.jpeg"}
+                                  src={connector.icon}
+                                  alt="Braavos Wallet Logo"
+                                  className="w-5 h-5 inline-block mr-2"
+                              />
+                              Braavos Wallet
+                          </>
+                      ) : (
+                          <>
+                              <img
+                                  // src="/images/ready logo.png"
+                                  src={connector.icon}
+                                  alt="Ready Wallet Logo"
+                                  className="w-5 h-5 inline-block mr-2"
+                              />
+                              Ready Wallet
+                          </>
+                      )}
+                  </button>
+                )
+                })}
+              </div>
+
+            )}
+          </div>
           </div>
         )}
       </div>
@@ -121,21 +182,21 @@ const WalletButton = () => {
         </div>
       )}
 
-      {isStarknetConnected && starknetAccount?.address && (
+      {starknetIsConnected && (
         <div className="relative">
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center space-x-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             <Zap className="h-4 w-4 text-purple-500" />
-            <span>{formatAddress(starknetAccount.address)}</span>
+            <span>{formatAddress(starknetAddress)}</span>
             <ChevronDown className={`h-3 w-3 transition-transform ${isDropdownOpen ? 'transform rotate-180' : ''}`} />
           </button>
           {isDropdownOpen && (
             <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-50">
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(starknetAccount.address);
+                  navigator.clipboard.writeText(starknetAddress);
                   setIsDropdownOpen(false);
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"

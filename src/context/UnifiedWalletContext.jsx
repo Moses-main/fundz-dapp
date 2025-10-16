@@ -299,6 +299,7 @@ export const UnifiedWalletProvider = ({ children }) => {
         starknetProvider,
         starknetContract,
         isStarknetConnected,
+        setIsStarknetConnected,
         connectStarknet,
         
         // Common

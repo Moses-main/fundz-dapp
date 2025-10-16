@@ -10,15 +10,16 @@ import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import CampaignsContainer from "./components/CampaignsContainer";
 import UserDashboard from "./pages/dashboard/UserDashboard";
+import StarknetProvider from "./context/StarknetProvider";
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
-  const { isEthConnected } = useUnifiedWallet();
+  const { isEthConnected, isStarknetConnected } = useUnifiedWallet();
   const location = useLocation();
 
-  if (!isEthConnected) {
-    return <Navigate to="/" state={{ from: location }} replace />;
-  }
+  // if (!isEthConnected || !isStarknetConnected) {
+  //   return <Navigate to="/" state={{ from: location }} replace />;
+  // }
 
   return children;
 };
@@ -66,9 +67,11 @@ const App = () => {
   return (
     <Router>
       <ThemeProviderContext>
-        <UnifiedWalletProvider>
+        {/* <UnifiedWalletProvider> */}
+        <StarknetProvider>
           <AppContent />
-        </UnifiedWalletProvider>
+        </StarknetProvider>
+        {/* </UnifiedWalletProvider> */}
       </ThemeProviderContext>
     </Router>
   );
